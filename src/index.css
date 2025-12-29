@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --primary-gold: #FFD700;
+  --secondary-gold: #FFA500;
+  --accent-gold: #D4AF37;
+  --dark-bg: #050505;
+  --card-bg: #0f0f0f;
+  --border-gold: rgba(212, 175, 55, 0.2);
+}
+
+body {
+  @apply bg-black text-white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: radial-gradient(circle at top left, #1a1a1a 0%, #000000 100%);
+  min-height: 100vh;
+  letter-spacing: -0.01em;
+}
+
+.gold-gradient {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
+}
+
+.gold-text {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
+.glass-effect {
+  background: rgba(15, 15, 15, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 215, 0, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-effect-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-effect-hover:hover {
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(255, 215, 0, 0.1);
+}
+
+.hover-gold {
+  transition: all 0.3s ease;
+}
+
+.hover-gold:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(255, 215, 0, 0.2);
+}
+
+.scrollbar-gold::-webkit-scrollbar {
+  width: 5px;
+}
+
+.scrollbar-gold::-webkit-scrollbar-track {
+  background: #050505;
+}
+
+.scrollbar-gold::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #FFD700, #FFA500);
+  border-radius: 10px;
+}
+
+.scrollbar-gold::-webkit-scrollbar-thumb:hover {
+  background: #FFD700;
+}
+
+/* Typography Enhancements */
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+}
+
+.text-shadow-gold {
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.card-title {
+  @apply text-lg font-semibold text-white mb-4 flex items-center gap-2;
+}
+
+.status-badge {
+  @apply px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider;
+}
