@@ -14,7 +14,7 @@ export const clientsService = {
         .from('clients')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
       
       if (error) throw error;
       
@@ -67,8 +67,7 @@ export const clientsService = {
         .from('clients')
         .insert([{ 
           ...supabaseClient,
-          user_id: user.id,
-          created_at: new Date().toISOString()
+          user_id: user.id
         }])
         .select()
         .single();

@@ -64,6 +64,12 @@ export const mapClientToSupabase = (componentClient) => {
     extra_info: componentClient.extraInfo || null,
     status: componentClient.status || 'active',
   };
+
+  if (componentClient.createdAt) {
+    mapped.created_at = new Date(componentClient.createdAt + 'T12:00:00Z').toISOString();
+  }
+
+  return mapped;
 };
 
 /**
@@ -110,6 +116,12 @@ export const mapResellerToSupabase = (componentReseller) => {
     expiry_time: componentReseller.expiryTime || null,
     extra_info: componentReseller.extraInfo || null,
   };
+
+  if (componentReseller.createdAt) {
+    mapped.created_at = new Date(componentReseller.createdAt + 'T12:00:00Z').toISOString();
+  }
+
+  return mapped;
 };
 
 /**

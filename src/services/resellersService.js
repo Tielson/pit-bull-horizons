@@ -14,7 +14,7 @@ export const resellersService = {
         .from('resellers')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
       
       if (error) throw error;
       
@@ -59,10 +59,7 @@ export const resellersService = {
       if (!user) throw new Error('Usuário não autenticado');
 
       // Converter para formato Supabase
-      const resellerToInsert = mapResellerToSupabase({
-        ...reseller,
-        createdAt: reseller.createdAt || new Date().toISOString()
-      });
+      const resellerToInsert = mapResellerToSupabase(reseller);
       
       // Adicionar user_id (não precisa ser convertido, já está em snake_case)
       resellerToInsert.user_id = user.id;
