@@ -9,6 +9,7 @@ import {
   Receipt,
   Users
 } from 'lucide-react';
+import { getBrasiliaDate } from '@/utils/dataMapper';
 import React, { useEffect, useState } from 'react';
 
 const Sidebar = ({ activeSection, setActiveSection, clients, resellers, panelLogo, panelTitle }) => {
@@ -18,12 +19,6 @@ const Sidebar = ({ activeSection, setActiveSection, clients, resellers, panelLog
     activeResellers: 0,
   });
   
-  const getBrasiliaDate = () => {
-    const now = new Date();
-    const brasiliaDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    return brasiliaDate;
-  };
-  
   const getTodayBrasilia = () => {
     const today = getBrasiliaDate();
     today.setHours(0, 0, 0, 0);
@@ -32,20 +27,25 @@ const Sidebar = ({ activeSection, setActiveSection, clients, resellers, panelLog
 
   const parseDateToBrasilia = (dateString) => {
     if (!dateString) return null;
-    const [year, month, day] = dateString.split('-').map(Number);
+    if (typeof dateString !== 'string') return dateString;
+    const str = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const [year, month, day] = str.split('-').map(Number);
     const date = new Date(year, month - 1, day);
-     if (isNaN(date.getTime())) return null;
+    if (isNaN(date.getTime())) return null;
     return date;
   };
 
   useEffect(() => {
-    const activeClientsCount = clients.filter(c => c.status === 'active').length;
-    const activeResellersCount = resellers.filter(r => r.status === 'active').length;
+    const safeClients = Array.isArray(clients) ? clients : [];
+    const safeResellers = Array.isArray(resellers) ? resellers : [];
+
+    const activeClientsCount = safeClients.filter(c => c && c.status === 'active').length;
+    const activeResellersCount = safeResellers.filter(r => r && r.status === 'active').length;
     
     const today = getTodayBrasilia();
 
-    const expiringTodayCount = [...clients, ...resellers].filter(item => {
-      if (!item.expiryDate || item.status !== 'active') return false;
+    const expiringTodayCount = [...safeClients, ...safeResellers].filter(item => {
+      if (!item || !item.expiryDate || item.status !== 'active') return false;
       
       const expiryDate = parseDateToBrasilia(item.expiryDate);
       if (!expiryDate) return false;

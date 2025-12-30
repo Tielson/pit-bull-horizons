@@ -7,9 +7,13 @@ export const plansService = {
    */
   async getAll() {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       const { data, error } = await supabase
         .from('plans')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -27,10 +31,14 @@ export const plansService = {
    */
   async getById(id) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       const { data, error } = await supabase
         .from('plans')
         .select('*')
         .eq('id', id)
+        .eq('user_id', user.id)
         .single();
       
       if (error) throw error;
@@ -77,6 +85,9 @@ export const plansService = {
    */
   async update(id, updates) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       // Converter para formato Supabase
       const updatesToSupabase = mapPlanToSupabase(updates);
       
@@ -84,6 +95,7 @@ export const plansService = {
         .from('plans')
         .update(updatesToSupabase)
         .eq('id', id)
+        .eq('user_id', user.id)
         .select()
         .single();
       
@@ -102,10 +114,14 @@ export const plansService = {
    */
   async delete(id) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       const { error } = await supabase
         .from('plans')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
       
       if (error) throw error;
     } catch (error) {

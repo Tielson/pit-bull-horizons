@@ -9,6 +9,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AlertDialogFooter } from "@/components/ui/alert-dialog";
 import { resellersService } from '@/services/resellersService';
+import { getBrasiliaDate, getTodayBrasiliaISO } from '@/utils/dataMapper';
 
 const ResellerManagement = ({
   setActiveSection,
@@ -35,15 +36,9 @@ const ResellerManagement = ({
     expiryTime: '',
     extraInfo: '',
     status: 'active',
-    createdAt: new Date().toISOString().split('T')[0]
+    createdAt: getTodayBrasiliaISO()
   });
   
-  const getBrasiliaDate = () => {
-    const now = new Date();
-    const brasiliaDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    return brasiliaDate;
-  };
-
   const getTodayBrasilia = () => {
     const today = getBrasiliaDate();
     today.setHours(0, 0, 0, 0);
@@ -52,7 +47,9 @@ const ResellerManagement = ({
 
   const parseDateToBrasilia = (dateString) => {
     if (!dateString) return null;
-    const [year, month, day] = dateString.split('-').map(Number);
+    if (typeof dateString !== 'string') return dateString;
+    const str = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const [year, month, day] = str.split('-').map(Number);
     const date = new Date(year, month - 1, day);
     if (isNaN(date.getTime())) return null;
     return date;
@@ -126,7 +123,7 @@ const ResellerManagement = ({
         expiryTime: '',
         extraInfo: '',
         status: 'active',
-        createdAt: new Date().toISOString().split('T')[0]
+        createdAt: getTodayBrasiliaISO()
       });
       setIsAdding(false);
       
@@ -156,7 +153,7 @@ const ResellerManagement = ({
   const handleEditReseller = reseller => {
     setEditing({
       ...reseller,
-      createdAt: reseller.createdAt || ''
+      createdAt: reseller.createdAt ? reseller.createdAt.split('T')[0] : ''
     });
   };
 

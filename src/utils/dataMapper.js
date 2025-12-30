@@ -4,6 +4,27 @@
  */
 
 /**
+ * Obter a data atual no fuso horário de Brasília (America/Sao_Paulo)
+ */
+export const getBrasiliaDate = () => {
+  const now = new Date();
+  const brasiliaDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  return brasiliaDate;
+};
+
+/**
+ * Obter a data atual no fuso horário de Brasília (America/Sao_Paulo)
+ * Retorna no formato YYYY-MM-DD
+ */
+export const getTodayBrasiliaISO = () => {
+  const brasiliaDate = getBrasiliaDate();
+  const year = brasiliaDate.getFullYear();
+  const month = String(brasiliaDate.getMonth() + 1).padStart(2, '0');
+  const day = String(brasiliaDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
  * Converter cliente do formato Supabase para formato do componente
  */
 export const mapClientFromSupabase = (supabaseClient) => {
@@ -11,15 +32,15 @@ export const mapClientFromSupabase = (supabaseClient) => {
   
   return {
     id: supabaseClient.id,
-    name: supabaseClient.name,
-    phone: supabaseClient.phone,
+    name: supabaseClient.name || '',
+    phone: supabaseClient.phone || '',
     plan: supabaseClient.plan,
     screens: supabaseClient.screens || 1,
     servers: supabaseClient.servers || 1,
-    createdAt: supabaseClient.created_at ? new Date(supabaseClient.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    createdAt: supabaseClient.created_at || new Date().toISOString(),
     expiryDate: supabaseClient.expiry_date || '',
     expiryTime: supabaseClient.expiry_time || '',
-    credentials: supabaseClient.credentials || [],
+    credentials: Array.isArray(supabaseClient.credentials) ? supabaseClient.credentials : [],
     extraInfo: supabaseClient.extra_info || '',
     status: supabaseClient.status || 'active',
   };
@@ -61,12 +82,12 @@ export const mapResellerFromSupabase = (supabaseReseller) => {
   
   return {
     id: supabaseReseller.id,
-    name: supabaseReseller.name,
-    phone: supabaseReseller.phone,
+    name: supabaseReseller.name || '',
+    phone: supabaseReseller.phone || '',
     credits: supabaseReseller.credits || 0,
     status: supabaseReseller.status || 'active',
     plan: supabaseReseller.plan,
-    createdAt: supabaseReseller.created_at ? new Date(supabaseReseller.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    createdAt: supabaseReseller.created_at || new Date().toISOString(),
     expiryDate: supabaseReseller.expiry_date || '',
     expiryTime: supabaseReseller.expiry_time || '',
     extraInfo: supabaseReseller.extra_info || '',
@@ -160,7 +181,7 @@ export const mapReceiptFromSupabase = (supabaseReceipt) => {
     clientType: supabaseReceipt.client_type || 'client',
     plan: supabaseReceipt.plan,
     amount: supabaseReceipt.amount ? String(supabaseReceipt.amount) : '0',
-    date: supabaseReceipt.payment_date ? new Date(supabaseReceipt.payment_date + 'T12:00:00Z').toLocaleDateString('pt-BR') : '',
+    date: supabaseReceipt.payment_date ? new Date(supabaseReceipt.payment_date + 'T12:00:00Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '',
     expiryDate: supabaseReceipt.expiry_date || '',
     paymentMethod: supabaseReceipt.payment_method || '',
     imageUrl: supabaseReceipt.receipt_data?.imageUrl || '',
@@ -175,7 +196,7 @@ export const mapReceiptToSupabase = (componentReceipt) => {
   if (!componentReceipt) return null;
   
   // Converter DD/MM/AAAA para YYYY-MM-DD
-  let formattedDate = new Date().toISOString().split('T')[0];
+  let formattedDate = getTodayBrasiliaISO();
   if (componentReceipt.date && componentReceipt.date.includes('/')) {
     const parts = componentReceipt.date.split('/');
     if (parts.length === 3) {
@@ -220,7 +241,7 @@ export const mapPixFromSupabase = (supabasePix) => {
     bank: supabasePix.bank || '',
     message: supabasePix.message || '',
     type: supabasePix.pix_type || 'random',
-    createdAt: supabasePix.created_at ? new Date(supabasePix.created_at).toISOString() : new Date().toISOString()
+    createdAt: supabasePix.created_at || new Date().toISOString()
   };
 };
 

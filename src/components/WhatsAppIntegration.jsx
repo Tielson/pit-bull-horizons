@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { Checkbox } from "@/components/ui/checkbox";
 import { templatesService } from '@/services/templatesService';
+import { getBrasiliaDate } from '@/utils/dataMapper';
 
 const templateVariables = [
   { label: 'Nome', value: '{nome}' },
@@ -51,14 +52,16 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
   
   const parseDateToBrasilia = (dateString) => {
     if (!dateString) return null;
-    const [year, month, day] = dateString.split('-').map(Number);
-    if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
-    return new Date(year, month - 1, day);
+    if (typeof dateString !== 'string') return dateString;
+    const str = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const [year, month, day] = str.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    if (isNaN(date.getTime())) return null;
+    return date;
   };
   
   const getTodayBrasilia = () => {
-    const now = new Date();
-    const brasiliaDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const brasiliaDate = getBrasiliaDate();
     brasiliaDate.setHours(0, 0, 0, 0);
     return brasiliaDate;
   };

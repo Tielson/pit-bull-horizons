@@ -7,9 +7,13 @@ export const resellersService = {
    */
   async getAll() {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       const { data, error } = await supabase
         .from('resellers')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -27,10 +31,14 @@ export const resellersService = {
    */
   async getById(id) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       const { data, error } = await supabase
         .from('resellers')
         .select('*')
         .eq('id', id)
+        .eq('user_id', user.id)
         .single();
       
       if (error) throw error;
@@ -53,7 +61,7 @@ export const resellersService = {
       // Converter para formato Supabase
       const resellerToInsert = mapResellerToSupabase({
         ...reseller,
-        createdAt: reseller.createdAt || new Date().toISOString().split('T')[0]
+        createdAt: reseller.createdAt || new Date().toISOString()
       });
       
       // Adicionar user_id (não precisa ser convertido, já está em snake_case)
@@ -80,6 +88,9 @@ export const resellersService = {
    */
   async update(id, updates) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       // Converter para formato Supabase
       const updatesToSupabase = mapResellerToSupabase(updates);
       
@@ -87,6 +98,7 @@ export const resellersService = {
         .from('resellers')
         .update(updatesToSupabase)
         .eq('id', id)
+        .eq('user_id', user.id)
         .select()
         .single();
       
@@ -105,10 +117,14 @@ export const resellersService = {
    */
   async delete(id) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       const { error } = await supabase
         .from('resellers')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
       
       if (error) throw error;
     } catch (error) {
@@ -127,11 +143,9 @@ export const resellersService = {
       if (!user) throw new Error('Usuário não autenticado');
 
       const resellersToInsert = resellers.map(reseller => {
-        const mapped = mapResellerToSupabase({
-          ...reseller,
-          userId: user.id,
-          id: undefined // Remover ID para criar novo registro
-        });
+        const mapped = mapResellerToSupabase(reseller);
+        mapped.user_id = user.id;
+        mapped.id = undefined; // Remover ID para criar novo registro
         return mapped;
       });
 

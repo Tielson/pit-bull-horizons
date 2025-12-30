@@ -21,6 +21,7 @@ import {
   Tooltip,
   XAxis, YAxis
 } from 'recharts';
+import { getBrasiliaDate } from '@/utils/dataMapper';
 
 const Dashboard = ({ setActiveSection, clients, plans, resellers }) => {
   const [stats, setStats] = useState({
@@ -31,12 +32,6 @@ const Dashboard = ({ setActiveSection, clients, plans, resellers }) => {
   });
   const [recentActivities, setRecentActivities] = useState([]);
   const [chartData, setChartData] = useState([]);
-
-  const getBrasiliaDate = () => {
-    const now = new Date();
-    const brasiliaDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    return brasiliaDate;
-  };
   
   const getTodayBrasilia = () => {
     const today = getBrasiliaDate();
@@ -46,9 +41,11 @@ const Dashboard = ({ setActiveSection, clients, plans, resellers }) => {
 
   const parseDateToBrasilia = (dateString) => {
     if (!dateString) return null;
-    const [year, month, day] = dateString.split('-').map(Number);
+    if (typeof dateString !== 'string') return dateString;
+    const str = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const [year, month, day] = str.split('-').map(Number);
     const date = new Date(year, month - 1, day);
-     if (isNaN(date.getTime())) return null;
+    if (isNaN(date.getTime())) return null;
     return date;
   };
 
@@ -56,20 +53,20 @@ const Dashboard = ({ setActiveSection, clients, plans, resellers }) => {
     const safeClients = Array.isArray(clients) ? clients : [];
     const safeResellers = Array.isArray(resellers) ? resellers : [];
 
-    const activeClients = safeClients.filter(c => c.status === 'active');
+    const activeClients = safeClients.filter(c => c && c.status === 'active');
     const totalClients = activeClients.length;
-    const totalResellers = safeResellers.filter(r => r.status === 'active').length;
+    const totalResellers = safeResellers.filter(r => r && r.status === 'active').length;
 
     const today = getTodayBrasilia();
 
     const clientsExpiringToday = safeClients.filter(c => {
-      if (!c.expiryDate || c.status !== 'active') return false;
+      if (!c || !c.expiryDate || c.status !== 'active') return false;
       const expiry = parseDateToBrasilia(c.expiryDate);
       return expiry && expiry.getTime() === today.getTime();
     }).length;
 
     const resellersExpiringToday = safeResellers.filter(r => {
-      if (!r.expiryDate || r.status !== 'active') return false;
+      if (!r || !r.expiryDate || r.status !== 'active') return false;
       const expiry = parseDateToBrasilia(r.expiryDate);
       return expiry && expiry.getTime() === today.getTime();
     }).length;
@@ -87,7 +84,7 @@ const Dashboard = ({ setActiveSection, clients, plans, resellers }) => {
 
     const expiringSoon = [...safeClients, ...safeResellers]
       .filter(c => {
-        if (c.status !== 'active' || !c.expiryDate) return false;
+        if (!c || c.status !== 'active' || !c.expiryDate) return false;
         const expiryDate = parseDateToBrasilia(c.expiryDate);
         return expiryDate && expiryDate > today && expiryDate <= fiveDaysFromNow;
       })
@@ -96,8 +93,8 @@ const Dashboard = ({ setActiveSection, clients, plans, resellers }) => {
         const daysDiff = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         return {
           type: 'expiring',
-          client: c.name,
-          action: `${safeClients.some(client => client.id === c.id) ? 'Cliente' : 'Revenda'} vence em ${daysDiff} ${daysDiff > 1 ? 'dias' : 'dia'}`,
+          client: c.name || 'Sem nome',
+          action: `${safeClients.some(client => client && client.id === c.id) ? 'Cliente' : 'Revenda'} vence em ${daysDiff} ${daysDiff > 1 ? 'dias' : 'dia'}`,
           time: expiryDate,
           status: 'warning'
         };
@@ -105,37 +102,40 @@ const Dashboard = ({ setActiveSection, clients, plans, resellers }) => {
 
     const newAdditions = [...safeClients, ...safeResellers]
       .filter(c => {
-        const createdAt = parseDateToBrasilia(c.createdAt);
+        if (!c || !c.createdAt) return false;
+        const createdAt = new Date(c.createdAt);
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
         return createdAt && createdAt >= sevenDaysAgo;
       })
       .map(c => ({
         type: 'new',
-        client: c.name,
-        action: `Novo ${safeClients.some(client => client.id === c.id) ? 'cliente' : 'revendedor'} adicionado`,
-        time: parseDateToBrasilia(c.createdAt),
+        client: c.name || 'Sem nome',
+        action: `Novo ${safeClients.some(client => client && client.id === c.id) ? 'cliente' : 'revendedor'} adicionado`,
+        time: new Date(c.createdAt),
         status: 'success'
       }));
 
     const allActivities = [...expiringSoon, ...newAdditions];
-    allActivities.sort((a, b) => b.time - a.time);
+    allActivities.sort((a, b) => (b.time?.getTime() || 0) - (a.time?.getTime() || 0));
     setRecentActivities(allActivities.slice(0, 5));
 
-    const data = [];
+    const chart_data = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(today.getDate() - i);
       const dateString = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
       
-      const newClientsOnDay = (Array.isArray(clients) ? clients : []).filter(c => {
-        const createdAt = parseDateToBrasilia(c.createdAt);
-        return createdAt && createdAt.getTime() === date.getTime();
+      const newClientsOnDay = safeClients.filter(c => {
+        if (!c || !c.createdAt) return false;
+        const createdAt = new Date(c.createdAt);
+        createdAt.setHours(0, 0, 0, 0);
+        return createdAt.getTime() === date.getTime();
       }).length;
 
-      data.push({ name: dateString, 'Novos Clientes': newClientsOnDay });
+      chart_data.push({ name: dateString, 'Novos Clientes': newClientsOnDay });
     }
-    setChartData(data);
+    setChartData(chart_data);
 
   }, [clients, plans, resellers]);
 
@@ -171,7 +171,7 @@ const Dashboard = ({ setActiveSection, clients, plans, resellers }) => {
 
   const timeSince = (date) => {
     if (!date) return '';
-    const seconds = Math.floor((new Date() - date) / 1000);
+    const seconds = Math.floor((getBrasiliaDate() - date) / 1000);
     let interval = seconds / 31536000;
     if (interval > 1) return Math.floor(interval) + " anos atrás";
     interval = seconds / 2592000;

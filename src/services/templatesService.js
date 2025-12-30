@@ -2,17 +2,26 @@ import { supabase } from '@/lib/customSupabaseClient';
 
 export const templatesService = {
   async getAll() {
-    const { data, error } = await supabase
-      .from('message_templates')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
 
-    if (error) {
+      const { data, error } = await supabase
+        .from('message_templates')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar templates:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
       console.error('Erro ao buscar templates:', error);
       throw error;
     }
-
-    return data || [];
   },
 
   async create(template) {
@@ -48,39 +57,57 @@ export const templatesService = {
   },
 
   async update(id, template) {
-    const { data, error } = await supabase
-      .from('message_templates')
-      .update({
-        name: template.name,
-        subject: template.subject,
-        message: template.message,
-        type: template.type,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
 
-    if (error) {
+      const { data, error } = await supabase
+        .from('message_templates')
+        .update({
+          name: template.name,
+          subject: template.subject,
+          message: template.message,
+          type: template.type,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro ao atualizar template:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
       console.error('Erro ao atualizar template:', error);
       throw error;
     }
-
-    return data;
   },
 
   async delete(id) {
-    const { error } = await supabase
-      .from('message_templates')
-      .delete()
-      .eq('id', id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
 
-    if (error) {
+      const { error } = await supabase
+        .from('message_templates')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Erro ao deletar template:', error);
+        throw error;
+      }
+
+      return true;
+    } catch (error) {
       console.error('Erro ao deletar template:', error);
       throw error;
     }
-
-    return true;
   },
 
   async syncMultiple(templates) {

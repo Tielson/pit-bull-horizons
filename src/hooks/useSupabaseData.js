@@ -51,21 +51,27 @@ export const useSupabaseData = () => {
         templatesService.getAll(),
       ]);
 
-      // Remover duplicatas baseado no ID (caso haja)
-      const uniqueClients = clientsData.filter((client, index, self) =>
-        index === self.findIndex(c => c.id === client.id)
+      // Garantir que todos sejam arrays e remover duplicatas baseado no ID
+      const safeClientsData = Array.isArray(clientsData) ? clientsData : [];
+      const safeResellersData = Array.isArray(resellersData) ? resellersData : [];
+      const safePlansData = Array.isArray(plansData) ? plansData : [];
+      const safeReceiptsData = Array.isArray(receiptsData) ? receiptsData : [];
+      const safeTemplatesData = Array.isArray(templatesData) ? templatesData : [];
+
+      const uniqueClients = safeClientsData.filter((client, index, self) =>
+        client && client.id && index === self.findIndex(c => c && c.id === client.id)
       );
-      const uniqueResellers = resellersData.filter((reseller, index, self) =>
-        index === self.findIndex(r => r.id === reseller.id)
+      const uniqueResellers = safeResellersData.filter((reseller, index, self) =>
+        reseller && reseller.id && index === self.findIndex(r => r && r.id === reseller.id)
       );
-      const uniquePlans = plansData.filter((plan, index, self) =>
-        index === self.findIndex(p => p.id === plan.id)
+      const uniquePlans = safePlansData.filter((plan, index, self) =>
+        plan && plan.id && index === self.findIndex(p => p && p.id === plan.id)
       );
-      const uniqueReceipts = receiptsData.filter((receipt, index, self) =>
-        index === self.findIndex(r => r.id === receipt.id)
+      const uniqueReceipts = safeReceiptsData.filter((receipt, index, self) =>
+        receipt && receipt.id && index === self.findIndex(r => r && r.id === receipt.id)
       );
-      const uniqueTemplates = templatesData.filter((template, index, self) =>
-        index === self.findIndex(t => t.id === template.id)
+      const uniqueTemplates = safeTemplatesData.filter((template, index, self) =>
+        template && template.id && index === self.findIndex(t => t && t.id === template.id)
       );
 
       setClients(uniqueClients);

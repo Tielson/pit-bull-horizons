@@ -10,6 +10,12 @@ const Header = ({ panelTitle, setPanelTitle, panelLogo, setPanelLogo, onLogout }
   const [tempLogo, setTempLogo] = useState(panelLogo);
   const fileInputRef = useRef(null);
 
+  const getBrasiliaDate = () => {
+    const now = new Date();
+    const brasiliaDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    return brasiliaDate;
+  };
+
   const handleSave = () => {
     setPanelTitle(tempTitle);
     setPanelLogo(tempLogo);
@@ -119,13 +125,14 @@ const Header = ({ panelTitle, setPanelTitle, panelLogo, setPanelLogo, onLogout }
         >
           <div className="text-xs font-medium text-gray-400 flex flex-col items-end text-right">
             <span className="capitalize">
-              {new Date().toLocaleDateString('pt-BR', { weekday: 'long' })}
+              {getBrasiliaDate().toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'America/Sao_Paulo' })}
             </span>
             <span>
-              {new Date().toLocaleDateString('pt-BR', {
+              {getBrasiliaDate().toLocaleDateString('pt-BR', {
                 day: '2-digit',
                 month: 'long',
-                year: 'numeric'
+                year: 'numeric',
+                timeZone: 'America/Sao_Paulo'
               })}
             </span>
           </div>

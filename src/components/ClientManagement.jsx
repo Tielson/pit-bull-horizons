@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from '@/components/ui/use-toast';
 import { clientsService } from '@/services/clientsService';
 import { receiptsService } from '@/services/receiptsService';
+import { getBrasiliaDate, getTodayBrasiliaISO } from '@/utils/dataMapper';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Calendar, ChevronsUpDown, Clock, Edit, Eye, FlaskConical, History, Plus, Receipt, RefreshCw, Save, ScreenShare, Search, Server, Smartphone, Trash2, User, UserCheck, Users, UserX, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
@@ -34,7 +35,7 @@ const ClientManagement = ({
     plan: '',
     screens: 0,
     servers: 0,
-    createdAt: new Date().toISOString().split('T')[0],
+    createdAt: getTodayBrasiliaISO(),
     expiryDate: '',
     expiryTime: '',
     credentials: [{
@@ -49,12 +50,6 @@ const ClientManagement = ({
     status: 'active'
   });
 
-  const getBrasiliaDate = () => {
-    const now = new Date();
-    const brasiliaDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    return brasiliaDate;
-  };
-
   const getTodayBrasilia = () => {
     const today = getBrasiliaDate();
     today.setHours(0, 0, 0, 0);
@@ -63,7 +58,9 @@ const ClientManagement = ({
 
   const parseDateToBrasilia = (dateString) => {
     if (!dateString) return null;
-    const [year, month, day] = dateString.split('-').map(Number);
+    if (typeof dateString !== 'string') return dateString;
+    const str = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const [year, month, day] = str.split('-').map(Number);
     const date = new Date(year, month - 1, day);
     if (isNaN(date.getTime())) return null;
     return date;
@@ -185,7 +182,7 @@ const ClientManagement = ({
         plan: '',
         screens: 0,
         servers: 0,
-        createdAt: new Date().toISOString().split('T')[0],
+        createdAt: getTodayBrasiliaISO(),
         expiryDate: '',
         expiryTime: '',
         credentials: [{
@@ -230,8 +227,8 @@ const ClientManagement = ({
       ...client,
       screens: client.screens || 0,
       servers: client.servers || 0,
-      createdAt: client.createdAt || '',
-      credentials: client.credentials ? client.credentials.map(cred => ({
+      createdAt: client.createdAt ? client.createdAt.split('T')[0] : '',
+      credentials: (client.credentials && Array.isArray(client.credentials)) ? client.credentials.map(cred => ({
         ...cred,
         appEntryDate: cred.appEntryDate || '',
         appExpiryDate: cred.appExpiryDate || '',
@@ -355,8 +352,9 @@ const ClientManagement = ({
   };
   
   const getFilteredClients = () => {
-    return clients.filter(c => {
-      const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.phone.includes(searchTerm);
+    const safeClients = Array.isArray(clients) ? clients : [];
+    return safeClients.filter(c => {
+      const matchesSearch = (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (c.phone || '').includes(searchTerm);
       if (!matchesSearch) return false;
 
       const today = getTodayBrasilia();
@@ -426,7 +424,8 @@ const ClientManagement = ({
 
   const getCount = (status) => {
     const today = getTodayBrasilia();
-    return clients.filter(c => {
+    const safeClients = Array.isArray(clients) ? clients : [];
+    return safeClients.filter(c => {
       // Verificar vencimento do App para os novos contadores
       const getAppExpiryInfo = () => {
         if (!c.credentials || !Array.isArray(c.credentials)) return null;
@@ -867,7 +866,7 @@ const ClientManagement = ({
                   <div><span className="text-gray-400">Data de Entrada:</span><p className="text-white font-medium">{formatDateForDisplay(client.createdAt)}</p></div>
                   <div><span className="text-gray-400">Data de Vencimento:</span><p className={`font-medium ${client.status === 'inactive' ? 'text-red-500' : client.status === 'pending' ? 'text-yellow-500' : 'text-white'}`}>{formatDateForDisplay(client.expiryDate)}{client.expiryTime && ` às ${client.expiryTime}`}</p></div>
                 </div>
-                {client.credentials && client.credentials.map((cred, i) => <div key={i} className="p-3 bg-black/20 rounded-lg border border-yellow-500/20 mb-2">
+                {client.credentials && Array.isArray(client.credentials) && client.credentials.map((cred, i) => <div key={i} className="p-3 bg-black/20 rounded-lg border border-yellow-500/20 mb-2">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm mb-2">
                       <div><span className="text-gray-400">Login {i + 1}:</span><p className="text-white font-medium">{cred.login || 'N/A'}</p></div>
                       <div><span className="text-gray-400">Senha {i + 1}:</span><p className="text-white font-medium">{cred.password || 'N/A'}</p></div>
@@ -914,7 +913,7 @@ const ClientManagement = ({
                 </div>
                 <div>
                   <h4 className="font-semibold text-lg gold-text mb-2 mt-4">Credenciais</h4>
-                  {viewingClient.credentials && viewingClient.credentials.map((cred, i) => <div key={i} className="glass-effect p-4 rounded-lg mb-3">
+                  {viewingClient.credentials && Array.isArray(viewingClient.credentials) && viewingClient.credentials.map((cred, i) => <div key={i} className="glass-effect p-4 rounded-lg mb-3">
                       <p className="font-bold text-white mb-2">Login {i + 1}</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                         <div><p className="text-gray-400">Login</p><p className="font-semibold">{cred.login || 'N/A'}</p></div>

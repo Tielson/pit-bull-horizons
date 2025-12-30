@@ -17,6 +17,7 @@ import { useSupabaseData } from '@/hooks/useSupabaseData';
 import SetupPage from '@/pages/SetupPage';
 import { clientsService } from '@/services/clientsService';
 import { resellersService } from '@/services/resellersService';
+import { getBrasiliaDate } from '@/utils/dataMapper';
 import { motion } from 'framer-motion';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -47,12 +48,6 @@ function App() {
   const [showSetup, setShowSetup] = useState(false);
   
   const loading = authLoading || dataLoading;
-
-  const getBrasiliaDate = () => {
-    const now = new Date();
-    const brasiliaDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    return brasiliaDate;
-  };
   
   const getTodayBrasilia = () => {
     const today = getBrasiliaDate();
@@ -62,9 +57,11 @@ function App() {
 
   const parseDateToBrasilia = (dateString) => {
     if (!dateString) return null;
-    const [year, month, day] = dateString.split('-').map(Number);
+    if (typeof dateString !== 'string') return dateString;
+    const str = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const [year, month, day] = str.split('-').map(Number);
     const date = new Date(year, month - 1, day);
-     if (isNaN(date.getTime())) return null;
+    if (isNaN(date.getTime())) return null;
     return date;
   };
 
@@ -152,33 +149,33 @@ function App() {
   useEffect(() => {
     if (!user || !isAuthenticated) return;
 
-    const check30DaysExpiry = () => {
-      const safeClients = Array.isArray(clients) ? clients : [];
-      const today = getTodayBrasilia();
-      const thirtyDaysFromNow = new Date(today);
-      thirtyDaysFromNow.setDate(today.getDate() + 30);
+  const check30DaysExpiry = () => {
+    const safeClients = Array.isArray(clients) ? clients : [];
+    const today = getTodayBrasilia();
+    const thirtyDaysFromNow = new Date(today);
+    thirtyDaysFromNow.setDate(today.getDate() + 30);
 
-      // Buscar clientes que vencem em exatamente 30 dias
-      const clientsExpiringIn30Days = safeClients.filter(client => {
-        if (!client.expiryDate || client.status === 'test' || client.status === 'inactive') {
-          return false;
-        }
+    // Buscar clientes que vencem em exatamente 30 dias
+    const clientsExpiringIn30Days = safeClients.filter(client => {
+      if (!client.expiryDate || client.status === 'test' || client.status === 'inactive') {
+        return false;
+      }
 
-        const expiryDate = parseDateToBrasilia(client.expiryDate);
-        if (!expiryDate) return false;
+      const expiryDate = parseDateToBrasilia(client.expiryDate);
+      if (!expiryDate) return false;
 
-        // Verificar se vence em exatamente 30 dias (com margem de 1 dia para evitar problemas de timezone)
-        const diffTime = expiryDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        return diffDays >= 29 && diffDays <= 31; // Margem de 1 dia
-      });
+      // Verificar se vence em exatamente 30 dias (com margem de 1 dia para evitar problemas de timezone)
+      const diffTime = expiryDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      return diffDays >= 29 && diffDays <= 31; // Margem de 1 dia
+    });
 
-      if (clientsExpiringIn30Days.length > 0) {
-        // Verificar quais clientes já foram notificados hoje
-        const todayKey = today.toISOString().split('T')[0];
-        const notifiedKey = `expiry_notified_30_${todayKey}`;
-        const notifiedIds = JSON.parse(localStorage.getItem(notifiedKey) || '[]');
+    if (clientsExpiringIn30Days.length > 0) {
+      // Verificar quais clientes já foram notificados hoje
+      const todayKey = today.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+      const notifiedKey = `expiry_notified_30_${todayKey}`;
+      const notifiedIds = JSON.parse(localStorage.getItem(notifiedKey) || '[]');
 
         clientsExpiringIn30Days.forEach(client => {
           // Só mostrar toast se ainda não foi notificado hoje

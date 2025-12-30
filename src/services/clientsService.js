@@ -7,9 +7,13 @@ export const clientsService = {
    */
   async getAll() {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       const { data, error } = await supabase
         .from('clients')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -27,10 +31,14 @@ export const clientsService = {
    */
   async getById(id) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       const { data, error } = await supabase
         .from('clients')
         .select('*')
         .eq('id', id)
+        .eq('user_id', user.id)
         .single();
       
       if (error) throw error;
@@ -80,6 +88,9 @@ export const clientsService = {
    */
   async update(id, updates) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       // Converter do formato do componente para formato Supabase
       const supabaseUpdates = mapClientToSupabase(updates);
       
@@ -87,6 +98,7 @@ export const clientsService = {
         .from('clients')
         .update(supabaseUpdates)
         .eq('id', id)
+        .eq('user_id', user.id)
         .select()
         .single();
       
@@ -105,10 +117,14 @@ export const clientsService = {
    */
   async delete(id) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       const { error } = await supabase
         .from('clients')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
       
       if (error) throw error;
     } catch (error) {
@@ -127,7 +143,7 @@ export const clientsService = {
       if (!user) throw new Error('Usuário não autenticado');
 
       const clientsWithUserId = clients.map(client => ({
-        ...client,
+        ...mapClientToSupabase(client),
         user_id: user.id,
         id: undefined // Remove ID local, deixa o Supabase gerar
       }));
@@ -138,7 +154,7 @@ export const clientsService = {
         .select();
       
       if (error) throw error;
-      return data || [];
+      return mapClientsFromSupabase(data || []);
     } catch (error) {
       console.error('Erro ao sincronizar clientes:', error);
       throw error;

@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from '@/components/ui/use-toast';
 import { receiptsService } from '@/services/receiptsService';
+import { getBrasiliaDate } from '@/utils/dataMapper';
 import { motion } from 'framer-motion';
 import { toPng } from 'html-to-image';
 import { Calendar, Check, Copy, Download, History, Save, Shield, Star, User } from 'lucide-react';
@@ -15,15 +16,11 @@ const RenewalReceipts = ({ setActiveSection, panelTitle, panelLogo, clients, sav
   const [isSaving, setIsSaving] = useState(false);
   const receiptPreviewRef = useRef(null);
 
-  const getBrasiliaDate = () => {
-    const now = new Date();
-    const brasiliaDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    return brasiliaDate;
-  };
-
   const parseDateToBrasilia = (dateString) => {
     if (!dateString) return null;
-    const [year, month, day] = dateString.split('-').map(Number);
+    if (typeof dateString !== 'string') return dateString;
+    const str = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const [year, month, day] = str.split('-').map(Number);
     const date = new Date(year, month - 1, day);
     if (isNaN(date.getTime())) return null;
     return date;
@@ -37,7 +34,7 @@ const RenewalReceipts = ({ setActiveSection, panelTitle, panelLogo, clients, sav
   };
 
   useEffect(() => {
-    setReceiptDate(new Date().toLocaleDateString('pt-BR'));
+    setReceiptDate(getBrasiliaDate().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }));
 
     const targetClient = localStorage.getItem('receipt_target_client');
     if (targetClient) {
@@ -95,7 +92,7 @@ const RenewalReceipts = ({ setActiveSection, panelTitle, panelLogo, clients, sav
         clientType: selectedClient.credits !== undefined ? 'reseller' : 'client',
         plan: selectedClient.plan,
         amount: plan ? plan.price : '0',
-        date: new Date().toLocaleDateString('pt-BR'),
+        date: getBrasiliaDate().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
         expiryDate: selectedClient.expiryDate,
         imageUrl: imageUrl,
       };
