@@ -13,12 +13,14 @@ import {
   Image as ImageIcon,
   ClipboardPaste,
   Gift,
-  PartyPopper
+  PartyPopper,
+  DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { Checkbox } from "@/components/ui/checkbox";
 import { templatesService } from '@/services/templatesService';
+import { pixService } from '@/services/pixService';
 import { getBrasiliaDate } from '@/utils/dataMapper';
 
 const templateVariables = [
@@ -34,9 +36,11 @@ const templateVariables = [
 ];
 
 const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTemplates = [], onTemplateCreated }) => {
-  const [pixInfo, setPixInfo] = useState(null);
+  const [pixSettings, setPixSettings] = useState([]);
+  const [localTemplates, setLocalTemplates] = useState(messageTemplates);
   const [isEditingTemplate, setIsEditingTemplate] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(false);
   const [newTemplate, setNewTemplate] = useState({
     name: '',
     subject: '',
@@ -45,11 +49,53 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
   });
   const [selectedClients, setSelectedClients] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [selectedPixId, setSelectedPixId] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [includePix, setIncludePix] = useState(false);
   const [attachedImage, setAttachedImage] = useState(null);
   const fileInputRef = useRef(null);
-  
+
+  const fetchApiData = async () => {
+    setIsLoadingData(true);
+    try {
+      const [pixData, templatesData] = await Promise.all([
+        pixService.getAll(),
+        templatesService.getAll()
+      ]);
+      setPixSettings(pixData || []);
+      if (pixData && pixData.length > 0) {
+        setSelectedPixId(pixData[0].id.toString());
+      }
+      setLocalTemplates(templatesData || []);
+    } catch (error) {
+      console.error("Erro ao buscar dados da API no WhatsAppIntegration:", error);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchApiData();
+
+    const targetClient = localStorage.getItem('whatsapp_target_client');
+    if (targetClient) {
+      const client = JSON.parse(targetClient);
+      setSelectedClients([client.id]);
+      localStorage.removeItem('whatsapp_target_client');
+      toast({
+        title: `🎯 Cliente ${client.name} selecionado!`,
+        description: "Escolha um template ou escreva uma mensagem para enviar.",
+      });
+    }
+  }, []);
+
+  // Sincronizar templates locais quando a prop mudar
+  useEffect(() => {
+    if (messageTemplates && messageTemplates.length > 0) {
+      setLocalTemplates(messageTemplates);
+    }
+  }, [messageTemplates]);
+
   const parseDateToBrasilia = (dateString) => {
     if (!dateString) return null;
     if (typeof dateString !== 'string') return dateString;
@@ -65,25 +111,6 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
     brasiliaDate.setHours(0, 0, 0, 0);
     return brasiliaDate;
   };
-
-  useEffect(() => {
-    const savedPixInfo = localStorage.getItem('pix_info');
-    if (savedPixInfo) {
-      setPixInfo(JSON.parse(savedPixInfo));
-    }
-
-    const targetClient = localStorage.getItem('whatsapp_target_client');
-    if (targetClient) {
-        const client = JSON.parse(targetClient);
-        setSelectedClients([client.id]);
-        localStorage.removeItem('whatsapp_target_client');
-        toast({
-            title: `🎯 Cliente ${client.name} selecionado!`,
-            description: "Escolha um template ou escreva uma mensagem para enviar.",
-        });
-    }
-
-  }, []);
 
   const handleAddTemplate = async () => {
     console.log('🔘 Botão Adicionar Template clicado');
@@ -110,6 +137,8 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
         console.log('🔄 Chamando reloadData...');
         await onTemplateCreated();
       }
+      // Buscar dados atualizados diretamente da API
+      await fetchApiData();
     } catch (error) {
       console.error('❌ Erro no WhatsAppIntegration ao adicionar template:', error);
       toast({ 
@@ -149,6 +178,8 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
       if (onTemplateCreated) {
         await onTemplateCreated();
       }
+      // Buscar dados atualizados diretamente da API
+      await fetchApiData();
     } catch (error) {
       console.error('Erro ao atualizar template:', error);
       toast({ 
@@ -172,6 +203,8 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
       if (onTemplateCreated) {
         await onTemplateCreated();
       }
+      // Buscar dados atualizados diretamente da API
+      await fetchApiData();
     } catch (error) {
       console.error('Erro ao deletar template:', error);
       toast({ 
@@ -214,7 +247,7 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
     }
 
     const clientsToSend = clients.filter(c => selectedClients.includes(c.id));
-    const template = messageTemplates.find(t => t.id.toString() === selectedTemplate);
+    const template = localTemplates.find(t => t.id.toString() === selectedTemplate);
 
     for (const [index, client] of clientsToSend.entries()) {
       let messageBody = customMessage;
@@ -251,14 +284,17 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
   };
 
   const getPixDetails = () => {
-    if (pixInfo && pixInfo.key) {
+    // Busca o PIX selecionado pelo ID
+    const activePix = pixSettings.find(p => p.id.toString() === selectedPixId) || (pixSettings.length > 0 ? pixSettings[0] : null);
+    
+    if (activePix && activePix.key) {
       return `
 --- DADOS PIX ---
-Nome: ${pixInfo.name}
-Chave: ${pixInfo.key}
-Banco: ${pixInfo.bank}
+Nome: ${activePix.name}
+Chave: ${activePix.key}
+Banco: ${activePix.bank}
 --------------------
-${pixInfo.message}
+${activePix.message}
       `.trim();
     }
     return '';
@@ -267,25 +303,30 @@ ${pixInfo.message}
   const formatMessage = (template, client) => {
     if (!template || !client) return '';
     let message = template.message;
+    
     const expiryDate = client.expiryDate ? parseDateToBrasilia(client.expiryDate) : null;
     const today = getTodayBrasilia();
     const daysUntilExpiry = expiryDate ? Math.round((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-    const firstCredential = client.credentials && client.credentials[0] ? client.credentials[0] : { login: '', password: '', appUsed: '' };
+    
+    // Garantir que credentials existam e pegar o primeiro
+    const credentials = Array.isArray(client.credentials) ? client.credentials : [];
+    const firstCredential = credentials.length > 0 ? credentials[0] : { login: '', password: '', appUsed: '' };
     
     const clientPlan = plans.find(p => p.name === client.plan);
     const planPrice = clientPlan ? clientPlan.price : 'N/A';
 
     const pixDetails = getPixDetails();
 
-    message = message.replace(/{nome}/g, client.name || '');
-    message = message.replace(/{login}/g, firstCredential.login || '');
-    message = message.replace(/{senha}/g, firstCredential.password || '');
-    message = message.replace(/{app}/g, firstCredential.appUsed || '');
-    message = message.replace(/{plano}/g, client.plan || '');
-    message = message.replace(/{valor_plano}/g, planPrice);
-    message = message.replace(/{data_vencimento}/g, expiryDate ? expiryDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '');
-    message = message.replace(/{dias}/g, daysUntilExpiry > 0 ? daysUntilExpiry.toString() : '0');
-    message = message.replace(/{dados_pix}/g, pixDetails);
+    // Substituições (Case insensitive para as variáveis)
+    message = message.replace(/{nome}/gi, client.name || '');
+    message = message.replace(/{login}/gi, firstCredential.login || '');
+    message = message.replace(/{senha}/gi, firstCredential.password || '');
+    message = message.replace(/{app}/gi, firstCredential.appUsed || '');
+    message = message.replace(/{plano}/gi, client.plan || '');
+    message = message.replace(/{valor_plano}/gi, planPrice);
+    message = message.replace(/{data_vencimento}/gi, expiryDate ? expiryDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '');
+    message = message.replace(/{dias}/gi, daysUntilExpiry > 0 ? daysUntilExpiry.toString() : '0');
+    message = message.replace(/{dados_pix}/gi, pixDetails);
     
     return `*${panelTitle}*\n\n${message}`;
   };
@@ -356,7 +397,7 @@ ${pixInfo.message}
           <Button onClick={handleAddTemplate} className="gold-gradient text-black hover:opacity-90"><Save className="w-4 h-4 mr-2" />Adicionar Template</Button>
         </div>
         <div className="space-y-4">
-          {(Array.isArray(messageTemplates) ? messageTemplates : []).map((template, index) => (
+          {(Array.isArray(localTemplates) ? localTemplates : []).map((template, index) => (
             <motion.div key={template.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: index * 0.05 }} className="p-4 bg-black/20 rounded-lg border border-yellow-500/20">
               {isEditingTemplate && isEditingTemplate.id === template.id ? (
                 <div className="space-y-3">
@@ -430,7 +471,7 @@ ${pixInfo.message}
                 <label className="block text-sm font-medium text-gray-300 mb-2">Template</label>
                 <select value={selectedTemplate} onChange={(e) => {setSelectedTemplate(e.target.value); setCustomMessage('');}} className="w-full p-3 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white">
                   <option value="">Selecione um template</option>
-                  {(Array.isArray(messageTemplates) ? messageTemplates : []).map((template) => (<option key={template.id} value={template.id}>{template.name}</option>))}
+                  {(Array.isArray(localTemplates) ? localTemplates : []).map((template) => (<option key={template.id} value={template.id}>{template.name}</option>))}
                 </select>
               </div>
               <div>
@@ -445,12 +486,43 @@ ${pixInfo.message}
                 <input type="file" ref={fileInputRef} className="hidden" />
               </div>
               {attachedImage && <div className="flex items-center gap-2 text-sm text-cyan-400"><ImageIcon size={16} /><p>Imagem anexada</p><X size={16} className="cursor-pointer" onClick={() => setAttachedImage(null)} /></div>}
-              {!selectedTemplate && pixInfo && pixInfo.key && (
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="includePix" checked={includePix} onCheckedChange={setIncludePix} />
-                  <label htmlFor="includePix" className="text-sm font-medium text-gray-300 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Incluir dados do PIX
-                  </label>
+              
+              {pixSettings.length > 0 && (
+                <div className="space-y-3">
+                  {/* Se não houver template, mostramos o checkbox de incluir PIX */}
+                  {!selectedTemplate && (
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="includePix" checked={includePix} onCheckedChange={setIncludePix} />
+                      <label htmlFor="includePix" className="text-sm font-medium text-gray-300 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Incluir dados do PIX na mensagem personalizada
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Mostramos o seletor de PIX se:
+                      1. For mensagem personalizada e 'includePix' estiver marcado
+                      2. For um template que utilize a variável {dados_pix}
+                  */}
+                  {((!selectedTemplate && includePix) || 
+                    (selectedTemplate && localTemplates.find(t => t.id.toString() === selectedTemplate)?.message?.toLowerCase().includes('{dados_pix}'))) && (
+                    <div className={!selectedTemplate ? "ml-6" : ""}>
+                      <label className="block text-xs font-medium text-gray-400 mb-1 flex items-center gap-1">
+                        <DollarSign size={12} className="text-yellow-500" />
+                        Chave PIX para envio
+                      </label>
+                      <select 
+                        value={selectedPixId} 
+                        onChange={(e) => setSelectedPixId(e.target.value)}
+                        className="w-full p-2 bg-black/40 border border-yellow-500/20 rounded text-xs text-white focus:outline-none focus:border-yellow-500"
+                      >
+                        {pixSettings.map(pix => (
+                          <option key={pix.id} value={pix.id}>
+                            {pix.label || pix.name} - {pix.bank} ({pix.key})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
               {(selectedTemplate || customMessage) && selectedClients.length > 0 && (
@@ -460,7 +532,7 @@ ${pixInfo.message}
                     {panelLogo && <img src={panelLogo} alt="Logo" className="absolute top-2 right-2 max-h-10 opacity-20"/>}
                     <p className="text-gray-300 text-sm whitespace-pre-wrap">
                       {selectedTemplate 
-                        ? formatMessage(messageTemplates.find(t => t.id.toString() === selectedTemplate), clients.find(c => c.id === selectedClients[0]))
+                        ? formatMessage(localTemplates.find(t => t.id.toString() === selectedTemplate), clients.find(c => c.id === selectedClients[0]))
                         : `${customMessage}${includePix ? `\n\n${getPixDetails()}` : ''}`
                       }
                     </p>

@@ -220,7 +220,7 @@ const ResellerManagement = ({
     setActiveSection('receipts');
   };
 
-  const handleRenewReseller = reseller => {
+  const handleRenewReseller = async reseller => {
     const plan = plans.find(p => p.name === reseller.plan);
     if (!plan) {
       toast({
@@ -237,20 +237,34 @@ const ResellerManagement = ({
     const baseDate = currentExpiry > today ? currentExpiry : today;
     const newExpiryDate = new Date(baseDate);
     newExpiryDate.setMonth(newExpiryDate.getMonth() + monthsToAdd);
-    const updatedReseller = {
+    
+    const updatedResellerData = {
       ...reseller,
       expiryDate: newExpiryDate.toISOString().split('T')[0],
       status: 'active'
     };
-    const safeResellers = Array.isArray(resellers) ? resellers : [];
-    const updatedResellers = safeResellers.map(r => r.id === reseller.id ? updatedReseller : r);
-    saveResellers(updatedResellers);
-    toast({
-      title: "🎉 Revendedor Renovado!",
-      description: `${reseller.name} foi renovado. Novo vencimento: ${newExpiryDate.toLocaleDateString('pt-BR', {
-        timeZone: 'America/Sao_Paulo'
-      })}.`
-    });
+
+    try {
+      await resellersService.update(reseller.id, updatedResellerData);
+      
+      const safeResellers = Array.isArray(resellers) ? resellers : [];
+      const updatedResellers = safeResellers.map(r => r.id === reseller.id ? updatedResellerData : r);
+      saveResellers(updatedResellers);
+      
+      toast({
+        title: "🎉 Revendedor Renovado!",
+        description: `${reseller.name} foi renovado. Novo vencimento: ${newExpiryDate.toLocaleDateString('pt-BR', {
+          timeZone: 'America/Sao_Paulo'
+        })}.`
+      });
+    } catch (error) {
+      console.error('Erro ao renovar revendedor:', error);
+      toast({
+        title: "❌ Erro ao renovar",
+        description: "Não foi possível salvar a renovação no banco de dados.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleDeleteReceipt = async receiptId => {

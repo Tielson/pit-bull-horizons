@@ -25,6 +25,37 @@ export const getTodayBrasiliaISO = () => {
 };
 
 /**
+ * Helper para garantir que temos um objeto Date válido a partir de uma string
+ */
+const parseDateSafe = (dateStr) => {
+  if (!dateStr) return null;
+  
+  // Se já for um objeto Date
+  if (dateStr instanceof Date) return dateStr;
+
+  // Se já for uma ISO string (contém T)
+  if (typeof dateStr === 'string' && dateStr.includes('T')) {
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Se for YYYY-MM-DD (formato comum de input date)
+  if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return new Date(dateStr + 'T12:00:00Z');
+  }
+
+  // Se for DD/MM/YYYY (formato brasileiro comum)
+  if (typeof dateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+    const [d, m, y] = dateStr.split('/');
+    return new Date(`${y}-${m}-${d}T12:00:00Z`);
+  }
+
+  // Tentar parse direto
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+/**
  * Converter cliente do formato Supabase para formato do componente
  */
 export const mapClientFromSupabase = (supabaseClient) => {
@@ -52,21 +83,22 @@ export const mapClientFromSupabase = (supabaseClient) => {
 export const mapClientToSupabase = (componentClient) => {
   if (!componentClient) return null;
   
-  return {
-    name: componentClient.name,
-    phone: componentClient.phone,
+  const mapped = {
+    name: componentClient.name || '',
+    phone: componentClient.phone || '',
     plan: componentClient.plan || null,
     screens: componentClient.screens || 1,
     servers: componentClient.servers || 1,
     expiry_date: componentClient.expiryDate || null,
     expiry_time: componentClient.expiryTime || null,
-    credentials: componentClient.credentials || [],
+    credentials: Array.isArray(componentClient.credentials) ? componentClient.credentials : [],
     extra_info: componentClient.extraInfo || null,
     status: componentClient.status || 'active',
   };
 
-  if (componentClient.createdAt) {
-    mapped.created_at = new Date(componentClient.createdAt + 'T12:00:00Z').toISOString();
+  const entryDate = parseDateSafe(componentClient.createdAt);
+  if (entryDate) {
+    mapped.created_at = entryDate.toISOString();
   }
 
   return mapped;
@@ -106,9 +138,9 @@ export const mapResellerFromSupabase = (supabaseReseller) => {
 export const mapResellerToSupabase = (componentReseller) => {
   if (!componentReseller) return null;
   
-  return {
-    name: componentReseller.name,
-    phone: componentReseller.phone,
+  const mapped = {
+    name: componentReseller.name || '',
+    phone: componentReseller.phone || '',
     credits: componentReseller.credits || 0,
     status: componentReseller.status || 'active',
     plan: componentReseller.plan || null,
@@ -117,8 +149,9 @@ export const mapResellerToSupabase = (componentReseller) => {
     extra_info: componentReseller.extraInfo || null,
   };
 
-  if (componentReseller.createdAt) {
-    mapped.created_at = new Date(componentReseller.createdAt + 'T12:00:00Z').toISOString();
+  const entryDate = parseDateSafe(componentReseller.createdAt);
+  if (entryDate) {
+    mapped.created_at = entryDate.toISOString();
   }
 
   return mapped;
@@ -280,4 +313,3 @@ export const mapPixsFromSupabase = (supabasePixs) => {
   if (!Array.isArray(supabasePixs)) return [];
   return supabasePixs.map(mapPixFromSupabase).filter(Boolean);
 };
-
