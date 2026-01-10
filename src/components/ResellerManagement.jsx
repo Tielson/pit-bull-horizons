@@ -8,7 +8,7 @@ import { toast } from '@/components/ui/use-toast';
 import { resellersService } from '@/services/resellersService';
 import { getBrasiliaDate, getTodayBrasiliaISO } from '@/utils/dataMapper';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Briefcase, Calendar, ChevronsUpDown, Clock, Coins, Edit, Eye, FlaskConical, History, Plus, Receipt, RefreshCw, Save, Search, Smartphone, Trash2, UserCheck, Users, UserX, X } from 'lucide-react';
+import { AlertTriangle, Briefcase, Calendar, ChevronsUpDown, Clock, Coins, Edit, Eye, EyeOff, FlaskConical, History, Plus, Receipt, RefreshCw, Save, Search, Smartphone, Trash2, UserCheck, Users, UserX, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 const ResellerManagement = ({
@@ -27,9 +27,14 @@ const ResellerManagement = ({
   const [viewingReseller, setViewingReseller] = useState(null);
   const [view, setView] = useState('active'); // 'active', 'inactive', 'test', 'pending', 'expiring_5', 'expiring_2', 'expiring_today'
   const [viewingReceiptsFor, setViewingReceiptsFor] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordInView, setShowPasswordInView] = useState(false);
+  const [showPasswordInCard, setShowPasswordInCard] = useState({}); // Objeto para rastrear senhas visíveis por card
   const [newReseller, setNewReseller] = useState({
     name: '',
     phone: '',
+    login: '',
+    password: '',
     credits: 0,
     plan: '',
     expiryDate: '',
@@ -117,6 +122,8 @@ const ResellerManagement = ({
       setNewReseller({
         name: '',
         phone: '',
+        login: '',
+        password: '',
         credits: 0,
         plan: '',
         expiryDate: '',
@@ -417,6 +424,30 @@ const ResellerManagement = ({
       ...state,
       phone: e.target.value
     })} placeholder="Telefone *" className="w-full p-3 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white" />
+      <input type="text" value={state.login || ''} onChange={e => setState({
+      ...state,
+      login: e.target.value
+    })} placeholder="Login" className="w-full p-3 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white" />
+      <div className="relative">
+        <input 
+          type={showPassword ? "text" : "password"} 
+          value={state.password || ''} 
+          onChange={e => setState({
+            ...state,
+            password: e.target.value
+          })} 
+          placeholder="Senha" 
+          className="w-full p-3 pr-10 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white" 
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-yellow-500 transition-colors"
+          title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+        >
+          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+        </button>
+      </div>
       <PlanCombobox value={state.plan} onChange={value => setState({
       ...state,
       plan: value
@@ -605,6 +636,38 @@ const ResellerManagement = ({
                     <div>
                       <h3 className="text-xl font-semibold text-white">{reseller.name}</h3>
                       <div className="flex items-center space-x-2 text-gray-400"><Smartphone className="w-4 h-4" /><span>{reseller.phone}</span></div>
+                      {(reseller.login || reseller.password) && (
+                        <div className="mt-2 space-y-1">
+                          {reseller.login && (
+                            <div className="flex items-center space-x-2 text-gray-400 text-sm">
+                              <UserCheck className="w-3 h-3" />
+                              <span>Login: <span className="text-white">{reseller.login}</span></span>
+                            </div>
+                          )}
+                          {reseller.password && (
+                            <div className="flex items-center space-x-2 text-gray-400 text-sm">
+                              <UserCheck className="w-3 h-3" />
+                              <span className="flex items-center gap-2">
+                                Senha: 
+                                <span className="text-white font-mono">
+                                  {showPasswordInCard[reseller.id] ? reseller.password : '••••••••'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPasswordInCard(prev => ({
+                                    ...prev,
+                                    [reseller.id]: !prev[reseller.id]
+                                  }))}
+                                  className="text-gray-400 hover:text-yellow-500 transition-colors ml-1"
+                                  title={showPasswordInCard[reseller.id] ? "Ocultar senha" : "Mostrar senha"}
+                                >
+                                  {showPasswordInCard[reseller.id] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                </button>
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex space-x-1">
@@ -640,7 +703,12 @@ const ResellerManagement = ({
           <p className="text-gray-500">{searchTerm ? 'Tente buscar por outro termo' : 'Adicione ou altere revendedores para preencher esta categoria'}</p>
         </motion.div>}
 
-      <Dialog open={!!viewingReseller} onOpenChange={() => setViewingReseller(null)}>
+      <Dialog open={!!viewingReseller} onOpenChange={(open) => {
+        if (!open) {
+          setViewingReseller(null);
+          setShowPasswordInView(false);
+        }
+      }}>
         <DialogContent className="bg-black/80 backdrop-blur-sm border-yellow-500/50 text-white max-w-lg">
           {viewingReseller && <>
               <DialogHeader>
@@ -653,6 +721,25 @@ const ResellerManagement = ({
                   <div className="glass-effect p-3 rounded-lg"><p className="text-gray-400">Plano</p><p className="font-semibold">{viewingReseller.plan || 'N/A'}</p></div>
                   <div className="glass-effect p-3 rounded-lg"><p className="text-gray-400">Créditos</p><p className="font-semibold">{viewingReseller.credits}</p></div>
                   <div className="glass-effect p-3 rounded-lg"><p className="text-gray-400">Data de Entrada</p><p className="font-semibold">{formatDateForDisplay(viewingReseller.createdAt)}</p></div>
+                  {viewingReseller.login && <div className="glass-effect p-3 rounded-lg"><p className="text-gray-400">Login</p><p className="font-semibold">{viewingReseller.login}</p></div>}
+                  {viewingReseller.password && (
+                    <div className="glass-effect p-3 rounded-lg relative">
+                      <p className="text-gray-400 mb-2">Senha</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold flex-1">
+                          {showPasswordInView ? viewingReseller.password : '••••••••'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowPasswordInView(!showPasswordInView)}
+                          className="text-gray-400 hover:text-yellow-500 transition-colors"
+                          title={showPasswordInView ? "Ocultar senha" : "Mostrar senha"}
+                        >
+                          {showPasswordInView ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div className="glass-effect p-3 rounded-lg md:col-span-2"><p className="text-gray-400">Vencimento</p><p className="font-semibold">{viewingReseller.expiryDate ? `${formatDateForDisplay(viewingReseller.expiryDate)} às ${viewingReseller.expiryTime || '00:00'}` : 'N/A'}</p></div>
                 </div>
                 {viewingReseller.extraInfo && <div>

@@ -122,6 +122,8 @@ export const mapResellerFromSupabase = (supabaseReseller) => {
     id: supabaseReseller.id,
     name: supabaseReseller.name || '',
     phone: supabaseReseller.phone || '',
+    login: supabaseReseller.login || '',
+    password: supabaseReseller.password || '',
     credits: supabaseReseller.credits || 0,
     status: supabaseReseller.status || 'active',
     plan: supabaseReseller.plan,
@@ -141,6 +143,8 @@ export const mapResellerToSupabase = (componentReseller) => {
   const mapped = {
     name: componentReseller.name || '',
     phone: componentReseller.phone || '',
+    login: componentReseller.login || null,
+    password: componentReseller.password || null,
     credits: componentReseller.credits || 0,
     status: componentReseller.status || 'active',
     plan: componentReseller.plan || null,

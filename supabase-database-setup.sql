@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS public.resellers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   phone TEXT,
+  login TEXT,
+  password TEXT,
   credits INTEGER DEFAULT 0,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'pending', 'test')),
   plan TEXT,
