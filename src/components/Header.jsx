@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Edit3, Save, X, ImagePlus, Upload, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
+import { motion } from 'framer-motion';
+import { Edit3, LogOut, Save, Upload, X } from 'lucide-react';
+import React, { useRef, useState } from 'react';
 
 const Header = ({ panelTitle, setPanelTitle, panelLogo, setPanelLogo, onLogout }) => {
   const [isEditing, setIsEditing] = useState(false);

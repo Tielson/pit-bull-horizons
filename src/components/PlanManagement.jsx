@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Package,
-  DollarSign,
-  Calendar,
-  Save,
-  X,
-  Users
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { plansService } from '@/services/plansService';
+import { motion } from 'framer-motion';
+import {
+  Calendar,
+  DollarSign,
+  Edit,
+  Package,
+  Plus,
+  Save,
+  Trash2,
+  Users,
+  X
+} from 'lucide-react';
+import React, { useState } from 'react';
 
 const PlanManagement = ({ plans, savePlans, onPlanCreated }) => {
   const [isAddingPlan, setIsAddingPlan] = useState(false);
@@ -190,12 +190,24 @@ const PlanManagement = ({ plans, savePlans, onPlanCreated }) => {
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Preço (R$) *</label>
               <input
-                type="number"
-                step="0.01"
+                type="text"
                 value={newPlan.price}
-                onChange={(e) => setNewPlan({...newPlan, price: e.target.value})}
+                onChange={(e) => {
+                  let value = e.target.value.replace(/[^0-9,]/g, '').replace(',', '.');
+                  if (value.includes('.')) {
+                    const parts = value.split('.');
+                    value = parts[0] + '.' + parts.slice(1).join('').substring(0, 2);
+                  }
+                  setNewPlan({...newPlan, price: value});
+                }}
+                onBlur={(e) => {
+                  const numValue = parseFloat(e.target.value.replace(',', '.'));
+                  if (!isNaN(numValue)) {
+                    setNewPlan({...newPlan, price: numValue.toFixed(2).replace('.', ',')});
+                  }
+                }}
                 className="w-full p-3 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white"
-                placeholder="29.90"
+                placeholder="30,00"
               />
             </div>
             <div>
@@ -314,11 +326,24 @@ const PlanManagement = ({ plans, savePlans, onPlanCreated }) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Preço</label>
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
                     value={editingPlan.price}
-                    onChange={(e) => setEditingPlan({...editingPlan, price: e.target.value})}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/[^0-9,]/g, '').replace(',', '.');
+                      if (value.includes('.')) {
+                        const parts = value.split('.');
+                        value = parts[0] + '.' + parts.slice(1).join('').substring(0, 2);
+                      }
+                      setEditingPlan({...editingPlan, price: value});
+                    }}
+                    onBlur={(e) => {
+                      const numValue = parseFloat(e.target.value.replace(',', '.'));
+                      if (!isNaN(numValue)) {
+                        setEditingPlan({...editingPlan, price: numValue.toFixed(2).replace('.', ',')});
+                      }
+                    }}
                     className="w-full p-2 bg-black/50 border border-yellow-500/30 rounded focus:border-yellow-500 focus:outline-none text-white"
+                    placeholder="30,00"
                   />
                 </div>
                 <div>
@@ -446,7 +471,9 @@ const PlanManagement = ({ plans, savePlans, onPlanCreated }) => {
                       <DollarSign className="w-4 h-4 text-green-500" />
                       <span className="text-gray-400">Preço:</span>
                     </div>
-                    <span className="text-2xl font-bold gold-text">R$ {plan.price}</span>
+                    <span className="text-2xl font-bold gold-text">
+                      R$ {plan.price ? (typeof plan.price === 'string' ? parseFloat(plan.price.replace(',', '.')).toFixed(2).replace('.', ',') : parseFloat(plan.price).toFixed(2).replace('.', ',')) : '0,00'}
+                    </span>
                   </div>
 
                   {plan.duration && (

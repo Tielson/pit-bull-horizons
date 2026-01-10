@@ -74,9 +74,6 @@ function App() {
 
   const checkAndApplyStatusUpdates = useCallback((currentClients, currentResellers) => {
     const today = getTodayBrasilia();
-    
-    const fiveDaysAgo = new Date(today);
-    fiveDaysAgo.setDate(today.getDate() - 5);
 
     const updateStatus = (item) => {
       if (!item || item.status === 'test' || !item.expiryDate) {
@@ -86,13 +83,10 @@ function App() {
       const expiryDate = parseDateToBrasilia(item.expiryDate);
       if (!expiryDate) return item;
 
-      if (expiryDate < fiveDaysAgo) {
+      // Se a data de vencimento passou, vai direto para inativo
+      if (expiryDate < today) {
         if (item.status !== 'inactive') {
           return { ...item, status: 'inactive' };
-        }
-      } else if (expiryDate < today) {
-        if (item.status === 'active') {
-          return { ...item, status: 'pending' };
         }
       }
       return item;

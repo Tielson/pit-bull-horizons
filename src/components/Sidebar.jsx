@@ -1,3 +1,4 @@
+import { getBrasiliaDate } from '@/utils/dataMapper';
 import { motion } from 'framer-motion';
 import {
   Briefcase,
@@ -9,7 +10,6 @@ import {
   Receipt,
   Users
 } from 'lucide-react';
-import { getBrasiliaDate } from '@/utils/dataMapper';
 import React, { useEffect, useState } from 'react';
 
 const Sidebar = ({ activeSection, setActiveSection, clients, resellers, panelLogo, panelTitle }) => {

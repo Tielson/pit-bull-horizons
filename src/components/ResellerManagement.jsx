@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Search, Edit, Trash2, Smartphone, User, Save, X, Users, UserX, UserCheck, Briefcase, Coins, RefreshCw, Receipt, History, Eye, ChevronsUpDown, FlaskConical, Clock, AlertTriangle, Calendar } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { WhatsAppIcon } from '@/components/ui/icons';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AlertDialogFooter } from "@/components/ui/alert-dialog";
+import { toast } from '@/components/ui/use-toast';
 import { resellersService } from '@/services/resellersService';
 import { getBrasiliaDate, getTodayBrasiliaISO } from '@/utils/dataMapper';
+import { motion } from 'framer-motion';
+import { AlertTriangle, Briefcase, Calendar, ChevronsUpDown, Clock, Coins, Edit, Eye, FlaskConical, History, Plus, Receipt, RefreshCw, Save, Search, Smartphone, Trash2, UserCheck, Users, UserX, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 const ResellerManagement = ({
   setActiveSection,

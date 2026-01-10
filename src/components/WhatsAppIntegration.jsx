@@ -13,34 +13,16 @@ import {
   Image as ImageIcon,
   ClipboardPaste,
   Gift,
-  PartyPopper,
-  DollarSign
+  PartyPopper
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { Checkbox } from "@/components/ui/checkbox";
-import { templatesService } from '@/services/templatesService';
-import { pixService } from '@/services/pixService';
-import { getBrasiliaDate } from '@/utils/dataMapper';
 
-const templateVariables = [
-  { label: 'Nome', value: '{nome}' },
-  { label: 'Login', value: '{login}' },
-  { label: 'Senha', value: '{senha}' },
-  { label: 'App', value: '{app}' },
-  { label: 'Plano', value: '{plano}' },
-  { label: 'Valor', value: '{valor_plano}' },
-  { label: 'Vencimento', value: '{data_vencimento}' },
-  { label: 'Dias Restantes', value: '{dias}' },
-  { label: 'Dados PIX', value: '{dados_pix}' },
-];
-
-const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTemplates = [], onTemplateCreated }) => {
-  const [pixSettings, setPixSettings] = useState([]);
-  const [localTemplates, setLocalTemplates] = useState(messageTemplates);
+const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans }) => {
+  const [messageTemplates, setMessageTemplates] = useState([]);
+  const [pixInfo, setPixInfo] = useState(null);
   const [isEditingTemplate, setIsEditingTemplate] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLoadingData, setIsLoadingData] = useState(false);
   const [newTemplate, setNewTemplate] = useState({
     name: '',
     subject: '',
@@ -49,172 +31,124 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
   });
   const [selectedClients, setSelectedClients] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
-  const [selectedPixId, setSelectedPixId] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [includePix, setIncludePix] = useState(false);
   const [attachedImage, setAttachedImage] = useState(null);
   const fileInputRef = useRef(null);
-
-  const fetchApiData = async () => {
-    setIsLoadingData(true);
-    try {
-      const [pixData, templatesData] = await Promise.all([
-        pixService.getAll(),
-        templatesService.getAll()
-      ]);
-      setPixSettings(pixData || []);
-      if (pixData && pixData.length > 0) {
-        setSelectedPixId(pixData[0].id.toString());
-      }
-      setLocalTemplates(templatesData || []);
-    } catch (error) {
-      console.error("Erro ao buscar dados da API no WhatsAppIntegration:", error);
-    } finally {
-      setIsLoadingData(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchApiData();
-
-    const targetClient = localStorage.getItem('whatsapp_target_client');
-    if (targetClient) {
-      const client = JSON.parse(targetClient);
-      setSelectedClients([client.id]);
-      localStorage.removeItem('whatsapp_target_client');
-      toast({
-        title: `🎯 Cliente ${client.name} selecionado!`,
-        description: "Escolha um template ou escreva uma mensagem para enviar.",
-      });
-    }
-  }, []);
-
-  // Sincronizar templates locais quando a prop mudar
-  useEffect(() => {
-    if (messageTemplates && messageTemplates.length > 0) {
-      setLocalTemplates(messageTemplates);
-    }
-  }, [messageTemplates]);
-
+  
   const parseDateToBrasilia = (dateString) => {
     if (!dateString) return null;
-    if (typeof dateString !== 'string') return dateString;
-    const str = dateString.includes('T') ? dateString.split('T')[0] : dateString;
-    const [year, month, day] = str.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    if (isNaN(date.getTime())) return null;
-    return date;
+    const [year, month, day] = dateString.split('-').map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+    return new Date(year, month - 1, day);
   };
   
   const getTodayBrasilia = () => {
-    const brasiliaDate = getBrasiliaDate();
+    const now = new Date();
+    const brasiliaDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     brasiliaDate.setHours(0, 0, 0, 0);
     return brasiliaDate;
   };
 
-  const handleAddTemplate = async () => {
-    console.log('🔘 Botão Adicionar Template clicado');
-    if (isSaving) {
-      console.log('⏸️ Já existe um salvamento em curso, ignorando...');
-      return;
+  useEffect(() => {
+    const savedPixInfo = localStorage.getItem('pix_info');
+    if (savedPixInfo) {
+      setPixInfo(JSON.parse(savedPixInfo));
     }
 
+    const savedTemplates = localStorage.getItem('whatsapp_templates');
+    if (savedTemplates) {
+      setMessageTemplates(JSON.parse(savedTemplates));
+    } else {
+      const defaultTemplates = [
+        {
+          id: 1,
+          name: 'Lembrete de Renovação com PIX',
+          subject: 'Seu acesso está quase expirando!',
+          message: 'Olá,{nome}! ✨\n\nSua assinatura do plano {plano} no valor de {valor_plano} está prestes a vencer em {dias} dias ({data_vencimento}).\n\nPara não perder o acesso aos melhores conteúdo, não esqueça de renovar na data correta  renovação via PIX! É rápido e fácil.\n\n{dados_pix}\n\nAgradecemos a sua confiança!',
+          type: 'expiry'
+        },
+        {
+          id: 2,
+          name: 'Boas-vindas ao Novo Cliente',
+          subject: 'Bem-vindo(a) ao nosso serviço!',
+          message: 'Seja muito bem-vindo(a), {nome}! 🎉\n\nEstamos muito felizes em ter você com a gente. Aqui esta o aplicativo que vc usara.\n\nApp: {app}\n\nQualquer dúvida, é só chamar! Obrigado pela confiança!',
+          type: 'welcome'
+        },
+        {
+            id: 3,
+            name: 'Confirmação de Renovação',
+            subject: 'Renovação confirmada!',
+            message: 'Perfeito, {nome}! ✅\n\nSua renovação foi confirmada com sucesso! Seu novo vencimento é {data_vencimento}.\n\nAgradecemos imensamente pela sua confiança e preferência. Continue aproveitando o melhor conteúdo!',
+            type: 'custom'
+        },
+        {
+            id: 4,
+            name: 'Teste a vencer',
+            subject: 'Seu teste está para vencer!',
+            message: 'Olá {nome}! ✨\n\nSeu teste está prestes a vencer em {dias} dias ({data_vencimento}).\n\nCaso tenha gostado Ative agora mesmo via PIX! É rápido e fácil.\n\n{dados_pix}\n\nAgradecemos a sua confiança!',
+            type: 'expiry'
+        },
+        {
+            id: 5,
+            name: 'Vencimento Hoje',
+            subject: 'Acesso Vence Hoje',
+            message: '🚨 ATENÇÃO, {nome}! 🚨\n\nSua assinatura do plano {plano} no valor de {valor_plano} vence hoje({data_vencimento}).\n\nPara não perder o acesso aos melhores conteúdo, renove agora mesmo via PIX! É rápido e fácil.\n\n{dados_pix}\n\nAgradecemos a sua confiança!',
+            type: 'expiry'
+        }
+      ];
+      setMessageTemplates(defaultTemplates);
+      localStorage.setItem('whatsapp_templates', JSON.stringify(defaultTemplates));
+    }
+    
+    const targetClient = localStorage.getItem('whatsapp_target_client');
+    if (targetClient) {
+        const client = JSON.parse(targetClient);
+        setSelectedClients([client.id]);
+        localStorage.removeItem('whatsapp_target_client');
+        toast({
+            title: `🎯 Cliente ${client.name} selecionado!`,
+            description: "Escolha um template ou escreva uma mensagem para enviar.",
+        });
+    }
+
+  }, []);
+
+  const saveTemplates = (updatedTemplates) => {
+    localStorage.setItem('whatsapp_templates', JSON.stringify(updatedTemplates));
+    setMessageTemplates(updatedTemplates);
+  };
+
+  const handleAddTemplate = () => {
     if (!newTemplate.name || !newTemplate.message) {
-      console.log('⚠️ Nome ou mensagem vazios');
       toast({ title: "❌ Erro", description: "Nome e mensagem são obrigatórios!", variant: "destructive" });
       return;
     }
-
-    setIsSaving(true);
-    console.log('📤 Enviando template para o serviço:', newTemplate);
-    try {
-      await templatesService.create(newTemplate);
-      console.log('✨ Template criado, limpando formulário...');
-      setNewTemplate({ name: '', subject: '', message: '', type: 'expiry' });
-      toast({ title: "✅ Sucesso!", description: "Template adicionado ao banco de dados!" });
-      
-      if (onTemplateCreated) {
-        console.log('🔄 Chamando reloadData...');
-        await onTemplateCreated();
-      }
-      // Buscar dados atualizados diretamente da API
-      await fetchApiData();
-    } catch (error) {
-      console.error('❌ Erro no WhatsAppIntegration ao adicionar template:', error);
-      toast({ 
-        title: "❌ Erro ao salvar", 
-        description: error.message || "Não foi possível salvar o template no Supabase.",
-        variant: "destructive" 
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const insertVariable = (variable, state, setState) => {
-    setState({
-      ...state,
-      message: (state.message || '') + variable
-    });
-    toast({
-      title: "📋 Variável adicionada",
-      description: `${variable} inserido na mensagem.`,
-    });
+    const templateWithId = { ...newTemplate, id: Date.now() };
+    const updatedTemplates = [...messageTemplates, templateWithId];
+    saveTemplates(updatedTemplates);
+    setNewTemplate({ name: '', subject: '', message: '', type: 'expiry' });
+    toast({ title: "✅ Sucesso!", description: "Template adicionado com sucesso!" });
   };
 
   const handleEditTemplate = (template) => {
     setIsEditingTemplate({ ...template });
   };
 
-  const handleSaveEdit = async () => {
-    if (isSaving) return;
-    setIsSaving(true);
-
-    try {
-      await templatesService.update(isEditingTemplate.id, isEditingTemplate);
-      setIsEditingTemplate(null);
-      toast({ title: "✅ Sucesso!", description: "Template atualizado no banco de dados!" });
-      
-      if (onTemplateCreated) {
-        await onTemplateCreated();
-      }
-      // Buscar dados atualizados diretamente da API
-      await fetchApiData();
-    } catch (error) {
-      console.error('Erro ao atualizar template:', error);
-      toast({ 
-        title: "❌ Erro ao atualizar", 
-        description: error.message || "Não foi possível atualizar o template no Supabase.",
-        variant: "destructive" 
-      });
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSaveEdit = () => {
+    const safeTemplates = Array.isArray(messageTemplates) ? messageTemplates : [];
+    const updatedTemplates = safeTemplates.map(template => 
+      template.id === isEditingTemplate.id ? isEditingTemplate : template
+    );
+    saveTemplates(updatedTemplates);
+    setIsEditingTemplate(null);
+    toast({ title: "✅ Sucesso!", description: "Template atualizado com sucesso!" });
   };
 
-  const handleDeleteTemplate = async (templateId) => {
-    if (isSaving) return;
-    setIsSaving(true);
-
-    try {
-      await templatesService.delete(templateId);
-      toast({ title: "✅ Sucesso!", description: "Template removido do banco de dados!" });
-      
-      if (onTemplateCreated) {
-        await onTemplateCreated();
-      }
-      // Buscar dados atualizados diretamente da API
-      await fetchApiData();
-    } catch (error) {
-      console.error('Erro ao deletar template:', error);
-      toast({ 
-        title: "❌ Erro ao excluir", 
-        description: error.message || "Não foi possível excluir o template do Supabase.",
-        variant: "destructive" 
-      });
-    } finally {
-      setIsSaving(false);
-    }
+  const handleDeleteTemplate = (templateId) => {
+    const updatedTemplates = messageTemplates.filter(template => template.id !== templateId);
+    saveTemplates(updatedTemplates);
+    toast({ title: "✅ Sucesso!", description: "Template removido com sucesso!" });
   };
 
   const handlePasteMessage = async () => {
@@ -247,7 +181,7 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
     }
 
     const clientsToSend = clients.filter(c => selectedClients.includes(c.id));
-    const template = localTemplates.find(t => t.id.toString() === selectedTemplate);
+    const template = messageTemplates.find(t => t.id.toString() === selectedTemplate);
 
     for (const [index, client] of clientsToSend.entries()) {
       let messageBody = customMessage;
@@ -284,17 +218,14 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
   };
 
   const getPixDetails = () => {
-    // Busca o PIX selecionado pelo ID
-    const activePix = pixSettings.find(p => p.id.toString() === selectedPixId) || (pixSettings.length > 0 ? pixSettings[0] : null);
-    
-    if (activePix && activePix.key) {
+    if (pixInfo && pixInfo.key) {
       return `
 --- DADOS PIX ---
-Nome: ${activePix.name}
-Chave: ${activePix.key}
-Banco: ${activePix.bank}
+Nome: ${pixInfo.name}
+Chave: ${pixInfo.key}
+Banco: ${pixInfo.bank}
 --------------------
-${activePix.message}
+${pixInfo.message}
       `.trim();
     }
     return '';
@@ -303,30 +234,25 @@ ${activePix.message}
   const formatMessage = (template, client) => {
     if (!template || !client) return '';
     let message = template.message;
-    
     const expiryDate = client.expiryDate ? parseDateToBrasilia(client.expiryDate) : null;
     const today = getTodayBrasilia();
     const daysUntilExpiry = expiryDate ? Math.round((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-    
-    // Garantir que credentials existam e pegar o primeiro
-    const credentials = Array.isArray(client.credentials) ? client.credentials : [];
-    const firstCredential = credentials.length > 0 ? credentials[0] : { login: '', password: '', appUsed: '' };
+    const firstCredential = client.credentials && client.credentials[0] ? client.credentials[0] : { login: '', password: '', appUsed: '' };
     
     const clientPlan = plans.find(p => p.name === client.plan);
     const planPrice = clientPlan ? clientPlan.price : 'N/A';
 
     const pixDetails = getPixDetails();
 
-    // Substituições (Case insensitive para as variáveis)
-    message = message.replace(/{nome}/gi, client.name || '');
-    message = message.replace(/{login}/gi, firstCredential.login || '');
-    message = message.replace(/{senha}/gi, firstCredential.password || '');
-    message = message.replace(/{app}/gi, firstCredential.appUsed || '');
-    message = message.replace(/{plano}/gi, client.plan || '');
-    message = message.replace(/{valor_plano}/gi, planPrice);
-    message = message.replace(/{data_vencimento}/gi, expiryDate ? expiryDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '');
-    message = message.replace(/{dias}/gi, daysUntilExpiry > 0 ? daysUntilExpiry.toString() : '0');
-    message = message.replace(/{dados_pix}/gi, pixDetails);
+    message = message.replace(/{nome}/g, client.name || '');
+    message = message.replace(/{login}/g, firstCredential.login || '');
+    message = message.replace(/{senha}/g, firstCredential.password || '');
+    message = message.replace(/{app}/g, firstCredential.appUsed || '');
+    message = message.replace(/{plano}/g, client.plan || '');
+    message = message.replace(/{valor_plano}/g, planPrice);
+    message = message.replace(/{data_vencimento}/g, expiryDate ? expiryDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '');
+    message = message.replace(/{dias}/g, daysUntilExpiry > 0 ? daysUntilExpiry.toString() : '0');
+    message = message.replace(/{dados_pix}/g, pixDetails);
     
     return `*${panelTitle}*\n\n${message}`;
   };
@@ -379,25 +305,11 @@ ${activePix.message}
             </select>
           </div>
           <div className="mb-4"><input type="text" value={newTemplate.subject} onChange={(e) => setNewTemplate({...newTemplate, subject: e.target.value})} className="w-full p-3 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white" placeholder="Assunto da mensagem" /></div>
-          <div className="mb-4">
-            <div className="mb-2 flex flex-wrap gap-2">
-              {templateVariables.map((v) => (
-                <button
-                  key={v.value}
-                  onClick={() => insertVariable(v.value, newTemplate, setNewTemplate)}
-                  className="px-2 py-1 text-[10px] font-bold bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 rounded hover:bg-yellow-500 hover:text-black transition-colors"
-                  title={`Clique para inserir ${v.value}`}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
-            <textarea value={newTemplate.message} onChange={(e) => setNewTemplate({...newTemplate, message: e.target.value})} className="w-full p-3 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white" placeholder="Mensagem do template..." rows="4" />
-          </div>
+          <div className="mb-4"><textarea value={newTemplate.message} onChange={(e) => setNewTemplate({...newTemplate, message: e.target.value})} className="w-full p-3 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white" placeholder="Variáveis: {nome}, {plano}, {valor_plano}, {data_vencimento}, {dias}, {dados_pix}" rows="4" /></div>
           <Button onClick={handleAddTemplate} className="gold-gradient text-black hover:opacity-90"><Save className="w-4 h-4 mr-2" />Adicionar Template</Button>
         </div>
         <div className="space-y-4">
-          {(Array.isArray(localTemplates) ? localTemplates : []).map((template, index) => (
+          {(Array.isArray(messageTemplates) ? messageTemplates : []).map((template, index) => (
             <motion.div key={template.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: index * 0.05 }} className="p-4 bg-black/20 rounded-lg border border-yellow-500/20">
               {isEditingTemplate && isEditingTemplate.id === template.id ? (
                 <div className="space-y-3">
@@ -410,17 +322,6 @@ ${activePix.message}
                     </select>
                   </div>
                   <input type="text" value={isEditingTemplate.subject} onChange={(e) => setIsEditingTemplate({...isEditingTemplate, subject: e.target.value})} className="w-full p-2 bg-black/50 border border-yellow-500/30 rounded focus:border-yellow-500 focus:outline-none text-white" placeholder="Assunto" />
-                  <div className="mb-2 flex flex-wrap gap-2">
-                    {templateVariables.map((v) => (
-                      <button
-                        key={v.value}
-                        onClick={() => insertVariable(v.value, isEditingTemplate, setIsEditingTemplate)}
-                        className="px-2 py-1 text-[10px] font-bold bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 rounded hover:bg-yellow-500 hover:text-black transition-colors"
-                      >
-                        {v.label}
-                      </button>
-                    ))}
-                  </div>
                   <textarea value={isEditingTemplate.message} onChange={(e) => setIsEditingTemplate({...isEditingTemplate, message: e.target.value})} className="w-full p-2 bg-black/50 border border-yellow-500/30 rounded focus:border-yellow-500 focus:outline-none text-white" rows="3" />
                   <div className="flex space-x-2"><Button onClick={handleSaveEdit} className="gold-gradient text-black hover:opacity-90" size="sm"><Save className="w-4 h-4 mr-2" />Salvar</Button><Button onClick={() => setIsEditingTemplate(null)} variant="outline" className="border-red-500 text-red-500 hover:bg-red-500/10" size="sm"><X className="w-4 h-4 mr-2" />Cancelar</Button></div>
                 </div>
@@ -471,7 +372,7 @@ ${activePix.message}
                 <label className="block text-sm font-medium text-gray-300 mb-2">Template</label>
                 <select value={selectedTemplate} onChange={(e) => {setSelectedTemplate(e.target.value); setCustomMessage('');}} className="w-full p-3 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white">
                   <option value="">Selecione um template</option>
-                  {(Array.isArray(localTemplates) ? localTemplates : []).map((template) => (<option key={template.id} value={template.id}>{template.name}</option>))}
+                  {(Array.isArray(messageTemplates) ? messageTemplates : []).map((template) => (<option key={template.id} value={template.id}>{template.name}</option>))}
                 </select>
               </div>
               <div>
@@ -486,43 +387,12 @@ ${activePix.message}
                 <input type="file" ref={fileInputRef} className="hidden" />
               </div>
               {attachedImage && <div className="flex items-center gap-2 text-sm text-cyan-400"><ImageIcon size={16} /><p>Imagem anexada</p><X size={16} className="cursor-pointer" onClick={() => setAttachedImage(null)} /></div>}
-              
-              {pixSettings.length > 0 && (
-                <div className="space-y-3">
-                  {/* Se não houver template, mostramos o checkbox de incluir PIX */}
-                  {!selectedTemplate && (
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="includePix" checked={includePix} onCheckedChange={setIncludePix} />
-                      <label htmlFor="includePix" className="text-sm font-medium text-gray-300 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        Incluir dados do PIX na mensagem personalizada
-                      </label>
-                    </div>
-                  )}
-
-                  {/* Mostramos o seletor de PIX se:
-                      1. For mensagem personalizada e 'includePix' estiver marcado
-                      2. For um template que utilize a variável {dados_pix}
-                  */}
-                  {((!selectedTemplate && includePix) || 
-                    (selectedTemplate && localTemplates.find(t => t.id.toString() === selectedTemplate)?.message?.toLowerCase().includes('{dados_pix}'))) && (
-                    <div className={!selectedTemplate ? "ml-6" : ""}>
-                      <label className="block text-xs font-medium text-gray-400 mb-1 flex items-center gap-1">
-                        <DollarSign size={12} className="text-yellow-500" />
-                        Chave PIX para envio
-                      </label>
-                      <select 
-                        value={selectedPixId} 
-                        onChange={(e) => setSelectedPixId(e.target.value)}
-                        className="w-full p-2 bg-black/40 border border-yellow-500/20 rounded text-xs text-white focus:outline-none focus:border-yellow-500"
-                      >
-                        {pixSettings.map(pix => (
-                          <option key={pix.id} value={pix.id}>
-                            {pix.label || pix.name} - {pix.bank} ({pix.key})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+              {!selectedTemplate && pixInfo && pixInfo.key && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="includePix" checked={includePix} onCheckedChange={setIncludePix} />
+                  <label htmlFor="includePix" className="text-sm font-medium text-gray-300 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Incluir dados do PIX
+                  </label>
                 </div>
               )}
               {(selectedTemplate || customMessage) && selectedClients.length > 0 && (
@@ -532,7 +402,7 @@ ${activePix.message}
                     {panelLogo && <img src={panelLogo} alt="Logo" className="absolute top-2 right-2 max-h-10 opacity-20"/>}
                     <p className="text-gray-300 text-sm whitespace-pre-wrap">
                       {selectedTemplate 
-                        ? formatMessage(localTemplates.find(t => t.id.toString() === selectedTemplate), clients.find(c => c.id === selectedClients[0]))
+                        ? formatMessage(messageTemplates.find(t => t.id.toString() === selectedTemplate), clients.find(c => c.id === selectedClients[0]))
                         : `${customMessage}${includePix ? `\n\n${getPixDetails()}` : ''}`
                       }
                     </p>

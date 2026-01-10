@@ -1,3 +1,4 @@
+import { getBrasiliaDate } from '@/utils/dataMapper';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -21,7 +22,6 @@ import {
   Tooltip,
   XAxis, YAxis
 } from 'recharts';
-import { getBrasiliaDate } from '@/utils/dataMapper';
 
 const Dashboard = ({ setActiveSection, clients, plans, resellers }) => {
   const [stats, setStats] = useState({
@@ -337,25 +337,6 @@ const Dashboard = ({ setActiveSection, clients, plans, resellers }) => {
               <ChevronRight className="w-5 h-5 text-purple-500" />
             </div>
           </div>
-
-          <motion.div 
-            className="glass-effect p-6 rounded-3xl border-dashed border-yellow-500/30"
-            whileHover={{ borderColor: 'rgba(212, 175, 55, 0.6)' }}
-          >
-            <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Meta Mensal</h4>
-            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: '65%' }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
-                className="h-full gold-gradient"
-              />
-            </div>
-            <div className="mt-2 flex justify-between items-center">
-              <span className="text-[10px] text-gray-500 font-bold">65% ATINGIDO</span>
-              <span className="text-[10px] text-yellow-500 font-bold">META: 100</span>
-            </div>
-          </motion.div>
         </motion.div>
       </div>
 

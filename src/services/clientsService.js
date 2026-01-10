@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/customSupabaseClient';
-import { mapClientsFromSupabase, mapClientFromSupabase, mapClientToSupabase } from '@/utils/dataMapper';
+import { mapClientFromSupabase, mapClientsFromSupabase, mapClientToSupabase } from '@/utils/dataMapper';
 
 export const clientsService = {
   /**
