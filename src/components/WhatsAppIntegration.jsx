@@ -18,8 +18,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { Checkbox } from "@/components/ui/checkbox";
+import { templatesService } from '@/services/templatesService';
 
-const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans }) => {
+const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTemplates: templatesFromProps = [], onTemplateCreated }) => {
   const [messageTemplates, setMessageTemplates] = useState([]);
   const [pixInfo, setPixInfo] = useState(null);
   const [isEditingTemplate, setIsEditingTemplate] = useState(null);
@@ -56,49 +57,9 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans }) => {
       setPixInfo(JSON.parse(savedPixInfo));
     }
 
-    const savedTemplates = localStorage.getItem('whatsapp_templates');
-    if (savedTemplates) {
-      setMessageTemplates(JSON.parse(savedTemplates));
-    } else {
-      const defaultTemplates = [
-        {
-          id: 1,
-          name: 'Lembrete de Renovação com PIX',
-          subject: 'Seu acesso está quase expirando!',
-          message: 'Olá,{nome}! ✨\n\nSua assinatura do plano {plano} no valor de {valor_plano} está prestes a vencer em {dias} dias ({data_vencimento}).\n\nPara não perder o acesso aos melhores conteúdo, não esqueça de renovar na data correta  renovação via PIX! É rápido e fácil.\n\n{dados_pix}\n\nAgradecemos a sua confiança!',
-          type: 'expiry'
-        },
-        {
-          id: 2,
-          name: 'Boas-vindas ao Novo Cliente',
-          subject: 'Bem-vindo(a) ao nosso serviço!',
-          message: 'Seja muito bem-vindo(a), {nome}! 🎉\n\nEstamos muito felizes em ter você com a gente. Aqui esta o aplicativo que vc usara.\n\nApp: {app}\n\nQualquer dúvida, é só chamar! Obrigado pela confiança!',
-          type: 'welcome'
-        },
-        {
-            id: 3,
-            name: 'Confirmação de Renovação',
-            subject: 'Renovação confirmada!',
-            message: 'Perfeito, {nome}! ✅\n\nSua renovação foi confirmada com sucesso! Seu novo vencimento é {data_vencimento}.\n\nAgradecemos imensamente pela sua confiança e preferência. Continue aproveitando o melhor conteúdo!',
-            type: 'custom'
-        },
-        {
-            id: 4,
-            name: 'Teste a vencer',
-            subject: 'Seu teste está para vencer!',
-            message: 'Olá {nome}! ✨\n\nSeu teste está prestes a vencer em {dias} dias ({data_vencimento}).\n\nCaso tenha gostado Ative agora mesmo via PIX! É rápido e fácil.\n\n{dados_pix}\n\nAgradecemos a sua confiança!',
-            type: 'expiry'
-        },
-        {
-            id: 5,
-            name: 'Vencimento Hoje',
-            subject: 'Acesso Vence Hoje',
-            message: '🚨 ATENÇÃO, {nome}! 🚨\n\nSua assinatura do plano {plano} no valor de {valor_plano} vence hoje({data_vencimento}).\n\nPara não perder o acesso aos melhores conteúdo, renove agora mesmo via PIX! É rápido e fácil.\n\n{dados_pix}\n\nAgradecemos a sua confiança!',
-            type: 'expiry'
-        }
-      ];
-      setMessageTemplates(defaultTemplates);
-      localStorage.setItem('whatsapp_templates', JSON.stringify(defaultTemplates));
+    // Usar templates do Supabase passados via props
+    if (templatesFromProps && templatesFromProps.length > 0) {
+      setMessageTemplates(templatesFromProps);
     }
     
     const targetClient = localStorage.getItem('whatsapp_target_client');
@@ -112,43 +73,79 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans }) => {
         });
     }
 
-  }, []);
+  }, [templatesFromProps, toast]);
 
-  const saveTemplates = (updatedTemplates) => {
-    localStorage.setItem('whatsapp_templates', JSON.stringify(updatedTemplates));
-    setMessageTemplates(updatedTemplates);
-  };
-
-  const handleAddTemplate = () => {
+  const handleAddTemplate = async () => {
     if (!newTemplate.name || !newTemplate.message) {
       toast({ title: "❌ Erro", description: "Nome e mensagem são obrigatórios!", variant: "destructive" });
       return;
     }
-    const templateWithId = { ...newTemplate, id: Date.now() };
-    const updatedTemplates = [...messageTemplates, templateWithId];
-    saveTemplates(updatedTemplates);
-    setNewTemplate({ name: '', subject: '', message: '', type: 'expiry' });
-    toast({ title: "✅ Sucesso!", description: "Template adicionado com sucesso!" });
+    
+    try {
+      await templatesService.create(newTemplate);
+      setNewTemplate({ name: '', subject: '', message: '', type: 'expiry' });
+      toast({ title: "✅ Sucesso!", description: "Template adicionado e salvo no banco de dados!" });
+      
+      // Recarregar templates do Supabase
+      if (onTemplateCreated) {
+        await onTemplateCreated();
+      }
+    } catch (error) {
+      console.error('Erro ao criar template:', error);
+      toast({ 
+        title: "❌ Erro", 
+        description: error.message || "Não foi possível salvar o template.", 
+        variant: "destructive" 
+      });
+    }
   };
 
   const handleEditTemplate = (template) => {
     setIsEditingTemplate({ ...template });
   };
 
-  const handleSaveEdit = () => {
-    const safeTemplates = Array.isArray(messageTemplates) ? messageTemplates : [];
-    const updatedTemplates = safeTemplates.map(template => 
-      template.id === isEditingTemplate.id ? isEditingTemplate : template
-    );
-    saveTemplates(updatedTemplates);
-    setIsEditingTemplate(null);
-    toast({ title: "✅ Sucesso!", description: "Template atualizado com sucesso!" });
+  const handleSaveEdit = async () => {
+    if (!isEditingTemplate || !isEditingTemplate.id) {
+      toast({ title: "❌ Erro", description: "Template inválido!", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      await templatesService.update(isEditingTemplate.id, isEditingTemplate);
+      setIsEditingTemplate(null);
+      toast({ title: "✅ Sucesso!", description: "Template atualizado e salvo no banco de dados!" });
+      
+      // Recarregar templates do Supabase
+      if (onTemplateCreated) {
+        await onTemplateCreated();
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar template:', error);
+      toast({ 
+        title: "❌ Erro", 
+        description: error.message || "Não foi possível atualizar o template.", 
+        variant: "destructive" 
+      });
+    }
   };
 
-  const handleDeleteTemplate = (templateId) => {
-    const updatedTemplates = messageTemplates.filter(template => template.id !== templateId);
-    saveTemplates(updatedTemplates);
-    toast({ title: "✅ Sucesso!", description: "Template removido com sucesso!" });
+  const handleDeleteTemplate = async (templateId) => {
+    try {
+      await templatesService.delete(templateId);
+      toast({ title: "✅ Sucesso!", description: "Template removido com sucesso!" });
+      
+      // Recarregar templates do Supabase
+      if (onTemplateCreated) {
+        await onTemplateCreated();
+      }
+    } catch (error) {
+      console.error('Erro ao deletar template:', error);
+      toast({ 
+        title: "❌ Erro", 
+        description: error.message || "Não foi possível remover o template.", 
+        variant: "destructive" 
+      });
+    }
   };
 
   const handlePasteMessage = async () => {
