@@ -36,6 +36,30 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
   const [includePix, setIncludePix] = useState(false);
   const [attachedImage, setAttachedImage] = useState(null);
   const fileInputRef = useRef(null);
+  const newTemplateMessageRef = useRef(null);
+  const editingTemplateMessageRef = useRef(null);
+  
+  // Função para inserir variável no textarea
+  const insertVariable = (variable, textareaRef, setState, currentValue) => {
+    if (!textareaRef.current) return;
+    
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = currentValue || '';
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    const newText = before + variable + after;
+    
+    setState(newText);
+    
+    // Reposicionar cursor após a variável inserida
+    setTimeout(() => {
+      textarea.focus();
+      const newPosition = start + variable.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+    }, 0);
+  };
   
   const parseDateToBrasilia = (dateString) => {
     if (!dateString) return null;
@@ -234,7 +258,15 @@ ${pixInfo.message}
     const expiryDate = client.expiryDate ? parseDateToBrasilia(client.expiryDate) : null;
     const today = getTodayBrasilia();
     const daysUntilExpiry = expiryDate ? Math.round((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+    
+    // Verificar se é um revendedor (tem credits ou login/password diretamente) ou cliente (tem credentials)
+    const isReseller = client.credits !== undefined || (client.login !== undefined && !client.credentials);
     const firstCredential = client.credentials && client.credentials[0] ? client.credentials[0] : { login: '', password: '', appUsed: '' };
+    
+    // Para revendedores, usar login e password diretamente; para clientes, usar credentials
+    const loginValue = isReseller ? (client.login || '') : (firstCredential.login || '');
+    const passwordValue = isReseller ? (client.password || '') : (firstCredential.password || '');
+    const appValue = isReseller ? '' : (firstCredential.appUsed || '');
     
     const clientPlan = plans.find(p => p.name === client.plan);
     const planPrice = clientPlan ? clientPlan.price : 'N/A';
@@ -242,9 +274,9 @@ ${pixInfo.message}
     const pixDetails = getPixDetails();
 
     message = message.replace(/{nome}/g, client.name || '');
-    message = message.replace(/{login}/g, firstCredential.login || '');
-    message = message.replace(/{senha}/g, firstCredential.password || '');
-    message = message.replace(/{app}/g, firstCredential.appUsed || '');
+    message = message.replace(/{login}/g, loginValue);
+    message = message.replace(/{senha}/g, passwordValue);
+    message = message.replace(/{app}/g, appValue);
     message = message.replace(/{plano}/g, client.plan || '');
     message = message.replace(/{valor_plano}/g, planPrice);
     message = message.replace(/{data_vencimento}/g, expiryDate ? expiryDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '');
@@ -302,7 +334,31 @@ ${pixInfo.message}
             </select>
           </div>
           <div className="mb-4"><input type="text" value={newTemplate.subject} onChange={(e) => setNewTemplate({...newTemplate, subject: e.target.value})} className="w-full p-3 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white" placeholder="Assunto da mensagem" /></div>
-          <div className="mb-4"><textarea value={newTemplate.message} onChange={(e) => setNewTemplate({...newTemplate, message: e.target.value})} className="w-full p-3 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white" placeholder="Variáveis: {nome}, {plano}, {valor_plano}, {data_vencimento}, {dias}, {dados_pix}" rows="4" /></div>
+          <div className="mb-4">
+            <div className="mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">Mensagem</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {['{nome}', '{login}', '{senha}', '{app}', '{plano}', '{valor_plano}', '{data_vencimento}', '{dias}', '{dados_pix}'].map((varName) => (
+                  <button
+                    key={varName}
+                    type="button"
+                    onClick={() => insertVariable(varName, newTemplateMessageRef, (value) => setNewTemplate({...newTemplate, message: value}), newTemplate.message)}
+                    className="px-2 py-1 text-xs bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 rounded text-yellow-400 font-mono transition-colors"
+                  >
+                    {varName}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <textarea 
+              ref={newTemplateMessageRef}
+              value={newTemplate.message} 
+              onChange={(e) => setNewTemplate({...newTemplate, message: e.target.value})} 
+              className="w-full p-3 bg-black/50 border border-yellow-500/30 rounded-lg focus:border-yellow-500 focus:outline-none text-white" 
+              placeholder="Digite sua mensagem aqui..." 
+              rows="4" 
+            />
+          </div>
           <Button onClick={handleAddTemplate} className="gold-gradient text-black hover:opacity-90"><Save className="w-4 h-4 mr-2" />Adicionar Template</Button>
         </div>
         <div className="space-y-4">
@@ -319,7 +375,27 @@ ${pixInfo.message}
                     </select>
                   </div>
                   <input type="text" value={isEditingTemplate.subject} onChange={(e) => setIsEditingTemplate({...isEditingTemplate, subject: e.target.value})} className="w-full p-2 bg-black/50 border border-yellow-500/30 rounded focus:border-yellow-500 focus:outline-none text-white" placeholder="Assunto" />
-                  <textarea value={isEditingTemplate.message} onChange={(e) => setIsEditingTemplate({...isEditingTemplate, message: e.target.value})} className="w-full p-2 bg-black/50 border border-yellow-500/30 rounded focus:border-yellow-500 focus:outline-none text-white" rows="3" />
+                  <div>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {['{nome}', '{login}', '{senha}', '{app}', '{plano}', '{valor_plano}', '{data_vencimento}', '{dias}', '{dados_pix}'].map((varName) => (
+                        <button
+                          key={varName}
+                          type="button"
+                          onClick={() => insertVariable(varName, editingTemplateMessageRef, (value) => setIsEditingTemplate({...isEditingTemplate, message: value}), isEditingTemplate.message)}
+                          className="px-2 py-1 text-xs bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 rounded text-yellow-400 font-mono transition-colors"
+                        >
+                          {varName}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea 
+                      ref={editingTemplateMessageRef}
+                      value={isEditingTemplate.message} 
+                      onChange={(e) => setIsEditingTemplate({...isEditingTemplate, message: e.target.value})} 
+                      className="w-full p-2 bg-black/50 border border-yellow-500/30 rounded focus:border-yellow-500 focus:outline-none text-white" 
+                      rows="3" 
+                    />
+                  </div>
                   <div className="flex space-x-2"><Button onClick={handleSaveEdit} className="gold-gradient text-black hover:opacity-90" size="sm"><Save className="w-4 h-4 mr-2" />Salvar</Button><Button onClick={() => setIsEditingTemplate(null)} variant="outline" className="border-red-500 text-red-500 hover:bg-red-500/10" size="sm"><X className="w-4 h-4 mr-2" />Cancelar</Button></div>
                 </div>
               ) : (
