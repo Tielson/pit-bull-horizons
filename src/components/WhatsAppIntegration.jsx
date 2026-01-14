@@ -1,24 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from '@/components/ui/use-toast';
+import { pixService } from '@/services/pixService';
+import { templatesService } from '@/services/templatesService';
 import { motion } from 'framer-motion';
-import { 
-  Send, 
-  Edit, 
-  Save, 
-  X, 
-  Users,
-  Clock,
-  CheckCircle,
+import {
   AlertTriangle,
+  CheckCircle,
+  ClipboardPaste,
+  Clock,
+  Edit,
   FlaskConical,
   Image as ImageIcon,
-  ClipboardPaste,
-  Gift,
-  PartyPopper
+  PartyPopper,
+  Save,
+  Send,
+  Users,
+  X
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
-import { Checkbox } from "@/components/ui/checkbox";
-import { templatesService } from '@/services/templatesService';
+import React, { useEffect, useRef, useState } from 'react';
 
 const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTemplates: templatesFromProps = [], onTemplateCreated }) => {
   const [messageTemplates, setMessageTemplates] = useState([]);
@@ -76,10 +76,41 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
   };
 
   useEffect(() => {
-    const savedPixInfo = localStorage.getItem('pix_info');
-    if (savedPixInfo) {
-      setPixInfo(JSON.parse(savedPixInfo));
-    }
+    // Buscar dados do PIX do Supabase
+    const loadPixInfo = async () => {
+      try {
+        const pixList = await pixService.getAll();
+        console.log('📋 PIX List carregada:', pixList);
+        if (pixList && pixList.length > 0) {
+          // Usar o primeiro PIX encontrado
+          const firstPix = pixList[0];
+          console.log('📋 Primeiro PIX:', firstPix);
+          const pixData = {
+            name: firstPix.name || '',
+            key: firstPix.key || '',
+            bank: firstPix.bank || '',
+            message: firstPix.message || 'Após o pagamento, por favor, envie o comprovante para confirmarmos a sua renovação. Obrigado! 🙏'
+          };
+          console.log('✅ Definindo pixInfo:', pixData);
+          setPixInfo(pixData);
+        } else {
+          // Fallback para localStorage se não houver no Supabase
+          const savedPixInfo = localStorage.getItem('pix_info');
+          if (savedPixInfo) {
+            setPixInfo(JSON.parse(savedPixInfo));
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do PIX:', error);
+        // Fallback para localStorage em caso de erro
+        const savedPixInfo = localStorage.getItem('pix_info');
+        if (savedPixInfo) {
+          setPixInfo(JSON.parse(savedPixInfo));
+        }
+      }
+    };
+
+    loadPixInfo();
 
     // Usar templates do Supabase passados via props
     if (templatesFromProps && templatesFromProps.length > 0) {
@@ -239,16 +270,20 @@ const WhatsAppIntegration = ({ panelLogo, panelTitle, clients, plans, messageTem
   };
 
   const getPixDetails = () => {
+    console.log('🔍 getPixDetails chamado, pixInfo:', pixInfo);
     if (pixInfo && pixInfo.key) {
-      return `
+      const pixText = `
 --- DADOS PIX ---
-Nome: ${pixInfo.name}
+Nome: ${pixInfo.name || 'N/A'}
 Chave: ${pixInfo.key}
-Banco: ${pixInfo.bank}
+Banco: ${pixInfo.bank || 'N/A'}
 --------------------
-${pixInfo.message}
+${pixInfo.message || 'Após o pagamento, por favor, envie o comprovante para confirmarmos a sua renovação. Obrigado! 🙏'}
       `.trim();
+      console.log('✅ pixText gerado:', pixText);
+      return pixText;
     }
+    console.log('⚠️ pixInfo não disponível ou sem chave');
     return '';
   };
 
@@ -272,6 +307,16 @@ ${pixInfo.message}
     const planPrice = clientPlan ? clientPlan.price : 'N/A';
 
     const pixDetails = getPixDetails();
+    
+    // Debug: verificar se pixDetails está sendo gerado
+    if (message.includes('{dados_pix}')) {
+      console.log('🔍 Debug {dados_pix}:', {
+        pixInfo,
+        pixDetails,
+        hasPixInfo: !!pixInfo,
+        hasKey: !!(pixInfo && pixInfo.key)
+      });
+    }
 
     message = message.replace(/{nome}/g, client.name || '');
     message = message.replace(/{login}/g, loginValue);
@@ -281,7 +326,9 @@ ${pixInfo.message}
     message = message.replace(/{valor_plano}/g, planPrice);
     message = message.replace(/{data_vencimento}/g, expiryDate ? expiryDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '');
     message = message.replace(/{dias}/g, daysUntilExpiry > 0 ? daysUntilExpiry.toString() : '0');
-    message = message.replace(/{dados_pix}/g, pixDetails);
+    // Substituir {dados_pix} com ou sem espaços ao redor
+    message = message.replace(/\{dados_pix\}/g, pixDetails);
+    message = message.replace(/\{\s*dados_pix\s*\}/g, pixDetails);
     
     return `*${panelTitle}*\n\n${message}`;
   };
