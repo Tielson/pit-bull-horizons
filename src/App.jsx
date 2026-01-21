@@ -211,7 +211,7 @@ function App() {
   useEffect(() => {
     if (!user) return; // Só executa se estiver logado
 
-    const interval = setInterval(async () => {
+    const runStatusUpdate = async () => {
       try {
         const safePrevClients = Array.isArray(clients) ? clients : [];
         const safeResellers = Array.isArray(resellers) ? resellers : [];
@@ -244,7 +244,12 @@ function App() {
       } catch (error) {
         console.error('Erro ao atualizar status:', error);
       }
-    }, 60 * 60 * 1000); // Roda a cada hora
+    };
+
+    // Rodar uma vez imediatamente (não esperar 1 hora)
+    runStatusUpdate();
+
+    const interval = setInterval(runStatusUpdate, 60 * 60 * 1000); // Roda a cada hora
 
     return () => clearInterval(interval);
   }, [clients, resellers, checkAndApplyStatusUpdates, user]);
