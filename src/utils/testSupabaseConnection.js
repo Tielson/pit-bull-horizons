@@ -73,7 +73,9 @@ export const testSupabaseConnection = async () => {
       const { error: healthError } = await supabase.from('_test').select('*').limit(1);
       
       // Se der erro de tabela não existe, está ok (significa que conectou)
-      if (healthError && healthError.code === 'PGRST116') {
+      // PGRST205 = tabela não encontrada no schema cache (erro esperado)
+      // PGRST116 = tabela não encontrada (outro código possível)
+      if (healthError && (healthError.code === 'PGRST205' || healthError.code === 'PGRST116')) {
         console.log('   ✅ Servidor respondendo (tabela de teste não existe, mas isso é ok)');
       } else if (healthError) {
         console.warn('   ⚠️ Aviso:', healthError.message);

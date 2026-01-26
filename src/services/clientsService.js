@@ -10,13 +10,22 @@ export const clientsService = {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
+      // Adicionar limite para evitar timeouts e melhorar performance
       const { data, error } = await supabase
         .from('clients')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        .limit(1000); // Limite razoável para evitar timeouts
       
-      if (error) throw error;
+      if (error) {
+        // Tratamento específico para timeout
+        if (error.code === '57014' || error.message?.includes('timeout')) {
+          console.error('⏱️ Timeout ao buscar clientes. Tente novamente ou verifique índices no banco.');
+          throw new Error('A consulta demorou muito. Tente novamente ou entre em contato com o suporte.');
+        }
+        throw error;
+      }
       
       // Converter do formato Supabase para formato do componente
       return mapClientsFromSupabase(data || []);

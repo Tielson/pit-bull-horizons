@@ -43,13 +43,29 @@ export const useSupabaseData = () => {
       setLoading(true);
       console.log('📥 Carregando dados do Supabase...');
 
-      const [clientsData, resellersData, plansData, receiptsData, templatesData] = await Promise.all([
+      // Usar Promise.allSettled para não falhar tudo se uma query der timeout
+      const results = await Promise.allSettled([
         clientsService.getAll(),
         resellersService.getAll(),
         plansService.getAll(),
         receiptsService.getAll(),
         templatesService.getAll(),
       ]);
+
+      // Processar resultados, tratando erros individualmente
+      const clientsData = results[0].status === 'fulfilled' ? results[0].value : [];
+      const resellersData = results[1].status === 'fulfilled' ? results[1].value : [];
+      const plansData = results[2].status === 'fulfilled' ? results[2].value : [];
+      const receiptsData = results[3].status === 'fulfilled' ? results[3].value : [];
+      const templatesData = results[4].status === 'fulfilled' ? results[4].value : [];
+
+      // Log de erros individuais
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const serviceNames = ['clientes', 'revendedores', 'planos', 'comprovantes', 'templates'];
+          console.error(`⚠️ Erro ao carregar ${serviceNames[index]}:`, result.reason);
+        }
+      });
 
       // Garantir que todos sejam arrays e remover duplicatas baseado no ID
       const safeClientsData = Array.isArray(clientsData) ? clientsData : [];
