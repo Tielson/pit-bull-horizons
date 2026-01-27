@@ -4,19 +4,25 @@ import { mapReceiptFromSupabase, mapReceiptToSupabase, mapReceiptsFromSupabase }
 export const receiptsService = {
   /**
    * Buscar todos os comprovantes do usuário logado
+   * Otimizado para evitar timeouts com limite reduzido e seleção específica de campos
    */
-  async getAll() {
+  async getAll(options = {}) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // Adicionar limite para evitar timeouts e melhorar performance
-      const { data, error } = await supabase
+      const { limit = 200, offset = 0 } = options;
+
+      // Selecionar campos específicos ao invés de * para melhor performance
+      // e usar limite menor para evitar timeouts
+      const query = supabase
         .from('receipts')
-        .select('*')
+        .select('id, client_id, client_name, client_type, plan, amount, payment_date, expiry_date, payment_method, receipt_data, user_id, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(1000); // Limite razoável para evitar timeouts
+        .range(offset, offset + limit - 1);
+
+      const { data, error } = await query;
       
       if (error) {
         // Tratamento específico para timeout
@@ -26,9 +32,50 @@ export const receiptsService = {
         }
         throw error;
       }
-      return mapReceiptsFromSupabase(data);
+      return mapReceiptsFromSupabase(data || []);
     } catch (error) {
       console.error('Erro ao buscar comprovantes:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Buscar comprovantes com paginação
+   * Retorna os dados e informações de paginação
+   */
+  async getAllPaginated(page = 1, pageSize = 100) {
+    try {
+      const offset = (page - 1) * pageSize;
+      const data = await this.getAll({ limit: pageSize, offset });
+      
+      // Buscar total de registros para calcular paginação
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Usar count com head: true para apenas contar sem retornar dados
+      const { count, error: countError } = await supabase
+        .from('receipts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (countError) {
+        console.warn('Erro ao contar comprovantes:', countError);
+      }
+
+      const total = count || 0;
+
+      return {
+        data,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages: Math.ceil(total / pageSize),
+          hasMore: total > offset + pageSize
+        }
+      };
+    } catch (error) {
+      console.error('Erro ao buscar comprovantes paginados:', error);
       throw error;
     }
   },
