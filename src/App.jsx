@@ -221,11 +221,11 @@ function App() {
         if (JSON.stringify(updatedClients) !== JSON.stringify(safePrevClients)) {
           console.log('🔄 Atualizando status dos clientes...');
           setClients(updatedClients);
-          // Atualizar cada cliente alterado no Supabase
+          // Atualizar cada cliente alterado no Supabase (enviar objeto completo para não sobrescrever outros campos)
           for (const client of updatedClients) {
             const oldClient = safePrevClients.find(c => c.id === client.id);
             if (oldClient && oldClient.status !== client.status) {
-              await clientsService.update(client.id, { status: client.status });
+              await clientsService.update(client.id, client);
             }
           }
         }
@@ -233,11 +233,11 @@ function App() {
         if (JSON.stringify(updatedResellers) !== JSON.stringify(safeResellers)) {
           console.log('🔄 Atualizando status dos revendedores...');
           setResellers(updatedResellers);
-          // Atualizar cada revendedor alterado no Supabase
+          // Atualizar cada revendedor alterado no Supabase (enviar objeto completo para não sobrescrever outros campos)
           for (const reseller of updatedResellers) {
             const oldReseller = safeResellers.find(r => r.id === reseller.id);
             if (oldReseller && oldReseller.status !== reseller.status) {
-              await resellersService.update(reseller.id, { status: reseller.status });
+              await resellersService.update(reseller.id, reseller);
             }
           }
         }
